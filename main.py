@@ -2,15 +2,15 @@
 CLI entry point.
 
 Usage:
-    python -m hormuz_pipeline.main
-    python -m hormuz_pipeline.main --disruption 0.65 --seed 7
-    python -m hormuz_pipeline.main --json out.json
+    python main.py
+    python main.py --disruption 0.65 --seed 7
+    python main.py --json out.json
 """
 import argparse
 import json
 
-from .orchestrator import run_pipeline
-from .models import to_dict
+from orchestrator import run_pipeline
+from models import to_dict
 
 
 def render_report(rec) -> str:

@@ -24,7 +24,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .models import NewsSignal, AISSignal, MarketSignal, CrudeGrade, Supplier, Refinery, SPRSite
+from models import NewsSignal, AISSignal, MarketSignal, CrudeGrade, Supplier, Refinery, SPRSite
 
 GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 GDELT_DEFAULT_QUERY = '(Hormuz OR "Strait of Hormuz") (tanker OR oil OR shipping OR Iran OR Gulf)'

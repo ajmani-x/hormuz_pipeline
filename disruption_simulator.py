@@ -5,8 +5,8 @@ Takes a scenario injection (e.g. "Hormuz -50% flow") applied to the exposed
 part of the network and computes: total supply gap, gap as % of national
 demand, a rough price impact, and per-refinery lost intake.
 """
-from ..models import ScenarioResult, RefineryImpact
-from ..data_sources import REFINERIES
+from models import ScenarioResult, RefineryImpact
+from data_sources import REFINERIES
 
 
 def run_scenario(exposure_report, disruption_pct: float, market_signals) -> ScenarioResult:

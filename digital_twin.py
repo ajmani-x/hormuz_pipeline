@@ -10,8 +10,8 @@ depend on it). A production twin would be a live, continuously-updated graph
 (refinery tank levels, in-transit cargo positions, contract volumes) rather
 than the fixed reference data in data_sources.py.
 """
-from ..models import ExposureReport
-from ..data_sources import REFINERIES, NATIONAL_DEMAND_BBL_PER_DAY
+from models import ExposureReport
+from data_sources import REFINERIES, NATIONAL_DEMAND_BBL_PER_DAY
 
 
 def get_exposed_refineries(routes: list) -> list:

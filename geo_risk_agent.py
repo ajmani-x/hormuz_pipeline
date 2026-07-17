@@ -10,7 +10,7 @@ transparent. A production version would likely replace `_score_route` with
 a trained model (e.g. gradient boosted trees or an LLM-based reasoning step
 over the same features).
 """
-from ..models import RouteRiskScore
+from models import RouteRiskScore
 
 
 def _news_component(news_signals, region_filter: str) -> float:

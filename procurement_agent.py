@@ -7,8 +7,8 @@ crude-compatible with that refinery's unit configuration (API gravity /
 sulfur tolerance). Greedily allocates supplier capacity across refineries
 in order of largest shortfall first.
 """
-from ..models import ProcurementPlan, ProcurementOption
-from ..data_sources import REFINERIES, SUPPLIERS
+from models import ProcurementPlan, ProcurementOption
+from data_sources import REFINERIES, SUPPLIERS
 
 
 def _is_compatible(refinery, supplier) -> bool:

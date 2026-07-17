@@ -9,9 +9,9 @@ Chains the six stages together exactly as in the architecture diagram:
 
 Run this via main.py, or import `run_pipeline` directly.
 """
-from .models import FinalRecommendation
-from .data_sources import generate_news_signals, generate_ais_signals, generate_market_signals
-from .agents import geo_risk_agent, digital_twin, disruption_simulator, procurement_agent, spr_agent
+from models import FinalRecommendation
+from data_sources import generate_news_signals, generate_ais_signals, generate_market_signals
+import geo_risk_agent, digital_twin, disruption_simulator, procurement_agent, spr_agent
 
 
 def run_pipeline(scenario_name: str = "Hormuz disruption scenario",

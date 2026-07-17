@@ -10,8 +10,8 @@ whoever holds real authority over the reserve.
 """
 import math
 
-from ..models import SPRRecommendation
-from ..data_sources import SPR_SITES
+from models import SPRRecommendation
+from data_sources import SPR_SITES
 
 
 def recommend_drawdown(scenario_result, procurement_plan) -> SPRRecommendation:

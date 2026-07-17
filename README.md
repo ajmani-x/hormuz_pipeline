@@ -20,9 +20,9 @@ against, not to make a real call about the Strait of Hormuz.
 ## Run it
 
 ```bash
-python -m hormuz_pipeline.main
-python -m hormuz_pipeline.main --disruption 0.65 --seed 7
-python -m hormuz_pipeline.main --disruption 1.0 --json full_output.json
+python main.py
+python main.py --disruption 0.65 --seed 7
+python main.py --disruption 1.0 --json full_output.json
 ```
 
 `--disruption` is the fraction of Hormuz-route flow assumed lost (0.5 =
