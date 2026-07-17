@@ -1,0 +1,65 @@
+{
+  "scenario": "Strait of Hormuz flow disruption",
+  "risk_summary": "Route 'Hormuz-Kochi' flagged at 50% risk (50% disruption probability). Factors: news_sentiment_score=0.32, ais_anomaly_score=0.63, market_stress_score=0.64.",
+  "exposure": {
+    "scenario": "Strait of Hormuz flow disruption",
+    "exposed_refineries": [
+      "BPCL Kochi"
+    ],
+    "exposed_routes": [
+      "Hormuz-Kochi"
+    ],
+    "exposed_volume_bbl_per_day": 310000,
+    "national_demand_bbl_per_day": 5000000
+  },
+  "impact": {
+    "scenario": "Strait of Hormuz flow disruption",
+    "disruption_pct_of_route": 0.5,
+    "total_supply_gap_bbl_per_day": 155000,
+    "supply_gap_pct_of_demand": 3.1,
+    "price_impact_usd_bbl": 1.7,
+    "refinery_impacts": [
+      {
+        "refinery": "BPCL Kochi",
+        "normal_intake_bbl_per_day": 310000,
+        "lost_intake_bbl_per_day": 155000,
+        "utilization_impact_pct": 50.0
+      }
+    ]
+  },
+  "procurement": {
+    "scenario": "Strait of Hormuz flow disruption",
+    "options": [
+      {
+        "refinery": "BPCL Kochi",
+        "supplier": "Saudi Aramco",
+        "route": "Hormuz-Gujarat",
+        "volume_bbl_per_day": 155000,
+        "lead_time_days": 10,
+        "compatible": true,
+        "notes": "Arab Light crude, 10d transit via Hormuz-Gujarat"
+      }
+    ],
+    "unmet_gap_bbl_per_day": 0,
+    "days_until_first_cargo": 10
+  },
+  "spr": {
+    "scenario": "Strait of Hormuz flow disruption",
+    "site_allocations": {
+      "Mangalore": 150000
+    },
+    "total_draw_bbl_per_day": 150000,
+    "draw_duration_days": 10,
+    "total_drawn_mmbbl": 1.5,
+    "replenish_after_day": 10,
+    "feasible": true,
+    "notes": "Covers 96.8% of the 155,000 bbl/day gap for 10 days, until first replacement cargo lands. Replenish reserve sites once procurement volumes are flowing."
+  },
+  "action_items": [
+    "Monitor 'Hormuz-Kochi' \u2014 risk score 50%. Escalate if disruption probability exceeds 75%.",
+    "Expect a supply gap of 155,000 bbl/day (3.1% of national demand); est. price impact +$1.7/bbl.",
+    "Procure 155,000 bbl/day from Saudi Aramco (fastest compatible alternative).",
+    "Release 150,000 bbl/day from SPR (Mangalore (150,000 bbl/day)) for 10 days, pending human sign-off.",
+    "Begin replenishing SPR sites after day 10 once cargoes land."
+  ]
+}
