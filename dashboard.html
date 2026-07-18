@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hormuz Supply Chain — Live Dashboard</title>
+<style>
+  :root {
+    --bg:             #08080b;
+    --surface-1:      #111116;
+    --surface-2:      #17171e;
+    --text-primary:   #f4f4f6;
+    --text-secondary: #a3a3ae;
+    --text-muted:     #71717f;
+    --gridline:       #26262f;
+    --border:         rgba(255,255,255,0.08);
+    --border-strong:  rgba(255,255,255,0.14);
+    --accent:         #7c6cf6;
+    --accent-bright:  #9d8fff;
+    --accent-dim:     rgba(124,108,246,0.14);
+    --teal:           #2dd4bf;
+    --warm:           #f59e0b;
+    --success-text:   #34d399;
+    --good:           #34d399;
+    --warning:        #fbbf24;
+    --warning-text:   #fbbf24;
+    --serious:        #f59e0b;
+    --critical:       #fb7185;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%;
+    font-family: -apple-system, "Inter", system-ui, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #webgl-bg { position: fixed; inset: 0; z-index: 0; }
+
+  /* --- Intro: scroll-to-fly-through splash --- */
+  #intro-overlay {
+    position: fixed; inset: 0; z-index: 6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; transition: opacity 0.6s ease; pointer-events: none;
+  }
+  #intro-overlay.hidden { opacity: 0; }
+  .intro-heading { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .intro-title {
+    margin: 0; font-size: clamp(40px, 8vw, 84px); font-weight: 650; letter-spacing: -0.01em;
+    text-shadow: 0 0 50px rgba(124,108,246,0.4);
+  }
+  .intro-hint {
+    margin-top: 26px; font-size: 13px; letter-spacing: 0.08em; color: var(--text-muted);
+    text-transform: uppercase; animation: introPulse 2.4s ease-in-out infinite; transition: opacity 0.3s ease;
+  }
+  @keyframes introPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+  .intro-progress { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(163,164,189,0.15); }
+  .intro-progress-bar {
+    height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+    box-shadow: 0 0 12px rgba(157,143,255,0.7); transition: width 0.1s linear;
+  }
+
+  #dashboard-wrap { position: fixed; inset: 0; z-index: 5; overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity 0.7s ease; }
+  #dashboard-wrap.active { opacity: 1; pointer-events: auto; }
+
+  .grid-overlay {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 40px 20px 70px; }
+
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-top: 16px; }
+  .dash-grid .panel { margin-top: 0; }
+  .table-scroll { overflow-x: auto; }
+  @media (max-width: 860px) { .dash-grid { grid-template-columns: 1fr; } }
+
+  @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .rise-target { opacity: 0; }
+  .rise-target.rise { animation: riseIn 0.55s cubic-bezier(.16,1,.3,1) forwards; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+  .eyebrow { letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; color: var(--accent-bright); font-weight: 600; display: block; margin-bottom: 8px; }
+  h1 { font-size: 1.6rem; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; max-width: 62ch; line-height: 1.5; }
+  .badge-demo { display: inline-block; margin-top: 10px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+  .hero-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+  .hero-tile, .panel {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.28);
+  }
+  .hero-tile { padding: 16px 18px; transition: border-color 0.2s ease, transform 0.2s ease; }
+  .hero-tile:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .hero-tile .label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+  .hero-value { font-size: 1.25rem; font-weight: 650; margin-top: 7px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
+  .hero-value .tag { font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .hero-value .tag.good { color: var(--good); background: rgba(52,211,153,0.14); }
+  .hero-value .tag.warning { color: var(--warning-text); background: rgba(251,191,36,0.14); }
+  .hero-value .tag.critical { color: var(--critical); background: rgba(251,113,133,0.14); }
+  @media (max-width: 720px) { .hero-row { grid-template-columns: repeat(2, 1fr); } }
+
+  .panel { padding: 22px 24px; margin-top: 16px; }
+  .panel h2 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin: 0 0 16px; font-weight: 650; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 5px; font-size: 0.68rem; color: var(--text-muted); }
+  .field > label { text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.63rem; font-weight: 600; }
+  .field input, .field select {
+    font: inherit; font-size: 0.85rem; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-primary); min-width: 110px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field input:hover, .field select:hover { border-color: var(--border-strong); }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .btn {
+    font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
+    background: var(--accent); color: white; cursor: pointer;
+    font-weight: 600; font-size: 0.82rem;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover:not(:disabled) { background: var(--accent-bright); box-shadow: 0 4px 16px rgba(124,108,246,0.35); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn.secondary { background: var(--surface-2); color: var(--text-primary); border-color: var(--border); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--border-strong); }
+  .btn:disabled { opacity: 0.45; cursor: wait; }
+  .status-line { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--text-muted); margin-top: 14px; }
+  .status-line.error { color: var(--critical); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--text-muted); }
+  .status-line.busy .status-dot { background: var(--warning); box-shadow: 0 0 6px rgba(251,191,36,0.6); animation: statusPulse 1.1s ease-in-out infinite; }
+  .status-line.ready .status-dot { background: var(--good); box-shadow: 0 0 6px rgba(52,211,153,0.6); }
+  .status-line.error .status-dot { background: var(--critical); box-shadow: 0 0 6px rgba(251,113,133,0.5); }
+  @keyframes statusPulse { 0%, 100% { opacity: 0.5; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-tile .label { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .stat-tile .value { font-size: 1.4rem; font-weight: 650; margin-top: 5px; letter-spacing: -0.01em; }
+  .stat-tile .unit { font-size: 0.72rem; color: var(--text-secondary); font-weight: 400; margin-left: 4px; }
+
+  .bar-track { height: 7px; border-radius: 999px; background: var(--gridline); overflow: hidden; margin-top: 8px; }
+  .bar-fill { height: 100%; width: 0%; border-radius: 999px; background: var(--accent); transition: width 0.8s cubic-bezier(.16,1,.3,1); }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; }
+  .badge.good { color: var(--good); background: rgba(52,211,153,0.14); }
+  .badge.warning { color: var(--warning-text); background: rgba(251,191,36,0.14); }
+  .badge.critical { color: var(--critical); background: rgba(251,113,133,0.14); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 4px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--gridline); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .site-bar-row { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; margin-top: 8px; font-size: 0.84rem; }
+  .site-bar-row .site-value { font-variant-numeric: tabular-nums; text-align: right; min-width: 88px; color: var(--text-secondary); }
+
+  ol.actions { margin: 0; padding-left: 20px; font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); }
+  ol.actions li::marker { color: var(--text-muted); }
+  ol.actions li.warning-item { color: var(--critical); font-weight: 600; }
+  ol.actions li.warning-item::marker { color: var(--critical); }
+
+  .empty-note { color: var(--text-muted); font-size: 0.85rem; }
+  .risk-summary { font-size: 0.9rem; line-height: 1.6; margin-top: 8px; color: var(--text-secondary); }
+  .risk-layout { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .gauge-wrap { flex: none; }
+  .risk-details { flex: 1; min-width: 240px; }
+
+  .hbar-row { margin-top: 14px; }
+  .hbar-row:first-child { margin-top: 0; }
+  .hbar-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; margin-bottom: 5px; }
+  .hbar-top .name { color: var(--text-primary); font-weight: 600; }
+  .hbar-top .figure { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 0.76rem; }
+  .hbar-track { height: 8px; border-radius: 999px; background: var(--gridline); overflow: hidden; }
+  .hbar-fill { height: 100%; width: 0%; border-radius: 999px; background: var(--warm); transition: width 0.8s cubic-bezier(.16,1,.3,1); }
+
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .stagger { opacity: 0; animation: fadeSlideIn 0.4s ease forwards; }
+  @keyframes popIn { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+  .badge.pop { animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+  .stat-tile.stagger { animation-name: fadeSlideIn; }
+
+  footer.page-footer { margin-top: 32px; font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+</style>
+</head>
+<body>
+<div id="webgl-bg"></div>
+<div class="grid-overlay"></div>
+
+<div id="intro-overlay">
+  <div class="intro-heading">
+    <span class="eyebrow">Supply Chain Intelligence</span>
+    <h1 class="intro-title">Strait of Hormuz</h1>
+  </div>
+  <div class="intro-hint" id="introHint">Scroll to descend into the pipeline</div>
+  <div class="intro-progress"><div class="intro-progress-bar" id="introProgressBar"></div></div>
+</div>
+
+<div id="dashboard-wrap">
+<div class="wrap">
+  <header class="rise-target">
+    <div>
+      <span class="eyebrow">Supply Chain Intelligence</span>
+      <h1>Strait of Hormuz — Disruption Dashboard</h1>
+      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News (GDELT) and market prices (Yahoo Finance) are real; the reference network and AIS data are synthetic/illustrative.</div>
+      <span class="badge-demo">DEMO DATA</span>
+    </div>
+  </header>
+
+  <div class="hero-row rise-target" style="animation-delay:0.08s">
+    <div class="hero-tile">
+      <div class="label">Risk level</div>
+      <div class="hero-value" id="heroRisk">—</div>
+    </div>
+    <div class="hero-tile">
+      <div class="label">Supply gap</div>
+      <div class="hero-value" id="heroGap">—</div>
+    </div>
+    <div class="hero-tile">
+      <div class="label">Procurement coverage</div>
+      <div class="hero-value" id="heroCoverage">—</div>
+    </div>
+    <div class="hero-tile">
+      <div class="label">SPR feasibility</div>
+      <div class="hero-value" id="heroSpr">—</div>
+    </div>
+  </div>
+
+  <section class="panel rise-target" style="animation-delay:0.14s">
+    <h2>Scenario Controls</h2>
+    <div class="controls">
+      <div class="field"><label for="region">Region</label><input id="region" type="text" value="Hormuz"></div>
+      <div class="field"><label for="disruption">Disruption (0–1)</label><input id="disruption" type="number" min="0" max="1" step="0.05" value="0.5"></div>
+      <div class="field"><label for="seed">Seed (blank = live)</label><input id="seed" type="number" placeholder="random"></div>
+      <div class="field">
+        <label for="interval">Auto-refresh</label>
+        <select id="interval">
+          <option value="0">Off</option>
+          <option value="30000">Every 30s</option>
+          <option value="60000" selected>Every 60s</option>
+          <option value="120000">Every 2 min</option>
+          <option value="300000">Every 5 min</option>
+        </select>
+      </div>
+      <button class="btn" id="runBtn" type="button">Run now</button>
+      <button class="btn secondary" id="speakBtn" type="button">🔊 Read report aloud</button>
+      <label class="field" style="flex-direction: row; align-items: center; gap: 6px;">
+        <input id="autoSpeak" type="checkbox" style="min-width:auto;">
+        <span>Auto-read on refresh</span>
+      </label>
+    </div>
+    <div class="status-line" id="statusLine"><i class="status-dot"></i><span id="statusText">Not run yet.</span></div>
+  </section>
+
+  <div class="dash-grid">
+    <section class="panel rise-target" style="animation-delay:0.18s"><h2>Geopolitical Risk</h2><div id="riskBody"><span class="empty-note">Run the pipeline to see results.</span></div></section>
+    <section class="panel rise-target" style="animation-delay:0.21s"><h2>Exposure (Digital Twin)</h2><div id="exposureBody"><span class="empty-note">—</span></div></section>
+    <section class="panel rise-target" style="animation-delay:0.24s"><h2>Disruption Impact</h2><div id="impactBody"><span class="empty-note">—</span></div></section>
+    <section class="panel rise-target" style="animation-delay:0.27s"><h2>Procurement Plan</h2><div id="procurementBody"><span class="empty-note">—</span></div></section>
+    <section class="panel rise-target" style="animation-delay:0.30s"><h2>SPR Recommendation</h2><div id="sprBody"><span class="empty-note">—</span></div></section>
+    <section class="panel rise-target" style="animation-delay:0.33s"><h2>Recommended Actions</h2><div id="actionsBody"><span class="empty-note">—</span></div></section>
+  </div>
+
+  <footer class="page-footer">hormuz_pipeline — local prototype dashboard. News (GDELT) and market prices (Yahoo Finance) are real; the rest is illustrative.</footer>
+</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+
+/* ---------------- Intro flight + WebGL bloom background ----------------
+   Purely atmospheric: a scroll-driven camera flight through a glowing
+   panel field, handing off to the normal static dashboard below. Recolored
+   to the indigo/violet accent so it matches the refined panel design
+   instead of the earlier teal "memory space" palette. */
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 5000);
+camera.position.set(0, 0, 900);
+
+let phase = 'intro';
+let scrollRaw = 0;
+let scrollSmoothed = 0;
+let introEntered = false;
+
+window.addEventListener('wheel', (e) => {
+  if (phase !== 'intro') return;
+  e.preventDefault();
+  scrollRaw = THREE.MathUtils.clamp(scrollRaw + e.deltaY * 0.00065, 0, 1);
+}, { passive: false });
+
+let touchStartY = null;
+window.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+window.addEventListener('touchmove', (e) => {
+  if (phase !== 'intro' || touchStartY === null) return;
+  const dy = touchStartY - e.touches[0].clientY;
+  touchStartY = e.touches[0].clientY;
+  scrollRaw = THREE.MathUtils.clamp(scrollRaw + dy * 0.0022, 0, 1);
+}, { passive: true });
+
+const CAMERA_INTRO_CURVE = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0, 3200),
+  new THREE.Vector3(260, 90, 2550),
+  new THREE.Vector3(-300, -70, 1900),
+  new THREE.Vector3(160, 110, 1400),
+  new THREE.Vector3(-110, 20, 1150),
+  new THREE.Vector3(30, 40, 980),
+  new THREE.Vector3(0, 0, 900),
+], false, 'catmullrom', 0.4);
+
+function enterDashboard() {
+  phase = 'dashboard';
+  document.getElementById('intro-overlay').classList.add('hidden');
+  document.getElementById('dashboard-wrap').classList.add('active');
+  document.querySelectorAll('.rise-target').forEach((el) => el.classList.add('rise'));
+}
+
+const bgScene = new THREE.Scene();
+bgScene.background = new THREE.Color(0x08080b);
+bgScene.fog = new THREE.Fog(0x08080b, 500, 2200);
+bgScene.add(new THREE.AmbientLight(0xffffff, 0.25));
+const pointLight = new THREE.PointLight(0x9d8fff, 0.7);
+pointLight.position.set(0, 300, 300);
+bgScene.add(pointLight);
+
+const webglRenderer = new THREE.WebGLRenderer({ antialias: false });
+webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+webglRenderer.setSize(window.innerWidth, window.innerHeight);
+webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+webglRenderer.toneMappingExposure = 1.1;
+document.getElementById('webgl-bg').appendChild(webglRenderer.domElement);
+
+const FLIGHT_SCALE = 5;
+const flightCurve = new THREE.CatmullRomCurve3(
+  [
+    [0, 0, 10], [3, 1.2, -12], [-4.5, -1, -38],
+    [2.5, 2, -68], [-2, 0.2, -102], [0.5, 0.8, -140], [0, 0, -178],
+  ].map(([x, y, z]) => new THREE.Vector3(x * FLIGHT_SCALE, y * FLIGHT_SCALE, z * FLIGHT_SCALE)),
+  false, 'catmullrom', 0.4
+);
+
+function buildPanelField(count, { tRange, lateralSpread }) {
+  const dummy = new THREE.Object3D();
+  const matrices = [];
+  for (let i = 0; i < count; i++) {
+    const t = THREE.MathUtils.lerp(tRange[0], tRange[1], Math.random());
+    const point = flightCurve.getPointAt(t);
+    const tangent = flightCurve.getTangentAt(t);
+    const normal = new THREE.Vector3(0, 1, 0).cross(tangent).normalize();
+    const up = new THREE.Vector3().crossVectors(tangent, normal).normalize();
+    const lateral = (Math.random() - 0.5) * lateralSpread;
+    const vertical = (Math.random() - 0.5) * lateralSpread * 0.6;
+    dummy.position.copy(point).addScaledVector(normal, lateral).addScaledVector(up, vertical);
+    dummy.lookAt(point);
+    dummy.rotateY(Math.random() * Math.PI);
+    const s = (0.45 + Math.random() * 1.1) * FLIGHT_SCALE;
+    dummy.scale.set(s, s * (0.6 + Math.random() * 0.8), 0.08 * FLIGHT_SCALE);
+    dummy.updateMatrix();
+    matrices.push(dummy.matrix.clone());
+  }
+  return matrices;
+}
+
+function makePanelMesh(count, opts, color, emissive, emissiveIntensity) {
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity, roughness: 0.35, metalness: 0.2 });
+  const mesh = new THREE.InstancedMesh(geo, mat, count);
+  buildPanelField(count, opts).forEach((m, i) => mesh.setMatrixAt(i, m));
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
+}
+
+bgScene.add(makePanelMesh(170, { tRange: [0.02, 0.92], lateralSpread: 78 * FLIGHT_SCALE }, 0x1c1a2e, 0x7c6cf6, 0.9));
+bgScene.add(makePanelMesh(16, { tRange: [0.55, 0.95], lateralSpread: 48 * FLIGHT_SCALE }, 0x0c2a26, 0x2dd4bf, 1.2));
+
+const portalGroup = new THREE.Group();
+portalGroup.position.set(0, 0, -850);
+const core = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(22, 1),
+  new THREE.MeshStandardMaterial({ color: 0x1a1030, emissive: 0x9d8fff, emissiveIntensity: 2.2, roughness: 0.25 })
+);
+core.position.set(60, 30, -60);
+portalGroup.add(core);
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(34, 40, 64),
+  new THREE.MeshBasicMaterial({ color: 0xeae6ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+);
+portalGroup.add(ring);
+bgScene.add(portalGroup);
+
+const composer = new EffectComposer(webglRenderer);
+composer.addPass(new RenderPass(bgScene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.85, 0.5, 0.32);
+composer.addPass(bloomPass);
+const vignettePass = new ShaderPass(VignetteShader);
+vignettePass.uniforms.offset.value = 0.15;
+vignettePass.uniforms.darkness.value = 0.9;
+composer.addPass(vignettePass);
+composer.addPass(new OutputPass());
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  webglRenderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+  bloomPass.setSize(window.innerWidth, window.innerHeight);
+});
+
+const clock = new THREE.Clock();
+const introPos = new THREE.Vector3();
+const introTangent = new THREE.Vector3();
+const introLookAhead = new THREE.Vector3();
+const introUp = new THREE.Vector3();
+const introMatrix = new THREE.Matrix4();
+const introQuat = new THREE.Quaternion();
+let lastScrollSmoothed = 0;
+
+function updateIntroCamera(delta) {
+  scrollSmoothed += (scrollRaw - scrollSmoothed) * Math.min(1, delta * 3.2);
+  const speed = Math.abs(scrollSmoothed - lastScrollSmoothed) / Math.max(delta, 1e-4);
+  lastScrollSmoothed = scrollSmoothed;
+
+  const tt = Math.min(scrollSmoothed, 0.999);
+  CAMERA_INTRO_CURVE.getPointAt(tt, introPos);
+  CAMERA_INTRO_CURVE.getTangentAt(tt, introTangent);
+  camera.position.copy(introPos);
+
+  introLookAhead.copy(introPos).addScaledVector(introTangent, 260);
+  const wobble = Math.sin(scrollSmoothed * Math.PI * 5) * 0.18;
+  introUp.set(wobble, 1, 0).normalize();
+  introMatrix.lookAt(camera.position, introLookAhead, introUp);
+  introQuat.setFromRotationMatrix(introMatrix);
+  camera.quaternion.copy(introQuat);
+
+  camera.fov = 55 + Math.min(speed * 6, 18);
+  camera.updateProjectionMatrix();
+
+  document.getElementById('introProgressBar').style.width = `${Math.min(100, scrollSmoothed * 100)}%`;
+  document.getElementById('introHint').style.opacity = Math.max(0, 1 - scrollSmoothed * 8);
+
+  if (scrollSmoothed > 0.985 && !introEntered) {
+    introEntered = true;
+    enterDashboard();
+  }
+}
+
+let elapsed = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  elapsed += delta;
+  const t = elapsed;
+
+  if (phase === 'intro') {
+    updateIntroCamera(delta);
+  } else {
+    camera.position.x = Math.sin(t * 0.06) * 70;
+    camera.position.y = Math.cos(t * 0.05) * 36;
+    camera.position.z = 900;
+    camera.lookAt(0, 0, -150);
+    camera.fov += (55 - camera.fov) * 0.05;
+    camera.updateProjectionMatrix();
+  }
+
+  ring.rotation.z += 0.0025;
+  core.rotation.y += 0.003;
+  core.rotation.x += 0.0012;
+
+  composer.render();
+}
+animate();
+
+/* ---------------- Dashboard data + rendering ---------------- */
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const fmtInt = (n) => Number(n).toLocaleString();
+  const fmtPct = (n) => `${(Number(n) * 100).toFixed(0)}%`;
+
+  let fetching = false;
+  let refreshTimer = null;
+  let lastData = null;
+
+  function animateNumbers(root) {
+    root.querySelectorAll('[data-countup]').forEach((el) => {
+      const target = Number(el.dataset.countup);
+      const prefix = el.dataset.prefix || '';
+      const suffix = el.dataset.suffix || '';
+      const decimals = Number(el.dataset.decimals || 0);
+      const duration = 700;
+      const start = performance.now();
+      function tick(now) {
+        const p = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = prefix + (target * eased).toLocaleString(undefined, {
+          minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+        }) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+    root.querySelectorAll('.bar-fill[data-target], .hbar-fill[data-target]').forEach((el) => {
+      el.style.width = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.width = el.dataset.target + '%'; }));
+    });
+    root.querySelectorAll('.stagger').forEach((el, i) => {
+      el.style.animationDelay = `${Math.min(i, 12) * 45}ms`;
+    });
+  }
+
+  function riskLevel(score) {
+    if (score >= 0.75) return { cls: 'critical', label: 'Critical' };
+    if (score >= 0.50) return { cls: 'critical', label: 'Serious' };
+    if (score >= 0.25) return { cls: 'warning', label: 'Elevated' };
+    return { cls: 'good', label: 'Low' };
+  }
+
+  const GAUGE_R = 46;
+  const GAUGE_CIRC = 2 * Math.PI * GAUGE_R;
+
+  function renderRisk(d) {
+    const score = d.top_risk_score || 0;
+    const level = riskLevel(score);
+    const body = $('riskBody');
+    body.innerHTML = `
+      <div class="risk-layout">
+        <div class="gauge-wrap stagger">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="${GAUGE_R}" fill="none" stroke="var(--gridline)" stroke-width="9"/>
+            <circle class="gauge-arc" cx="60" cy="60" r="${GAUGE_R}" fill="none" stroke="var(--accent)"
+              stroke-width="9" stroke-linecap="round" stroke-dasharray="${GAUGE_CIRC}"
+              stroke-dashoffset="${GAUGE_CIRC}" data-gauge-target="${score}" transform="rotate(-90 60 60)"/>
+            <text x="60" y="56" text-anchor="middle" font-size="23" font-weight="700" fill="var(--text-primary)"><tspan data-countup="${(score*100).toFixed(0)}" data-suffix="%">0%</tspan></text>
+            <text x="60" y="75" text-anchor="middle" font-size="8.5" letter-spacing="1" fill="var(--text-muted)">RISK SCORE</text>
+          </svg>
+        </div>
+        <div class="risk-details">
+          <div class="stat-row">
+            <div class="stat-tile stagger"><div class="label">Top flagged route</div><div class="value" style="font-size:1.05rem">${d.top_risk_route || '—'}</div></div>
+            <div class="stat-tile stagger"><div class="label">Status</div><div style="margin-top:6px"><span class="badge pop ${level.cls}">${level.cls === 'good' ? '✓' : '⚠'} ${level.label}</span></div></div>
+          </div>
+          <div class="risk-summary stagger">${d.risk_summary || ''}</div>
+        </div>
+      </div>
+    `;
+    body.querySelectorAll('.gauge-arc[data-gauge-target]').forEach((el) => {
+      const target = Number(el.dataset.gaugeTarget);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(.16,1,.3,1)';
+        el.setAttribute('stroke-dashoffset', String(GAUGE_CIRC * (1 - target)));
+      }));
+    });
+    animateNumbers(body);
+    updateHero(d);
+  }
+
+  function updateHero(d) {
+    const score = d.top_risk_score || 0;
+    const level = riskLevel(score);
+    $('heroRisk').innerHTML = `${fmtPct(score)} <span class="tag ${level.cls}">${level.label}</span>`;
+    if (d.impact) $('heroGap').textContent = `${fmtInt(d.impact.total_supply_gap_bbl_per_day)} bbl/day`;
+    if (d.procurement) {
+      const covered = d.procurement.unmet_gap_bbl_per_day === 0;
+      $('heroCoverage').innerHTML = covered
+        ? `<span class="tag good">Fully covered</span>` : `<span class="tag warning">${fmtInt(d.procurement.unmet_gap_bbl_per_day)} bbl/day short</span>`;
+    }
+    if (d.spr) {
+      $('heroSpr').innerHTML = d.spr.feasible
+        ? `<span class="tag good">✓ Feasible</span>` : `<span class="tag critical">✕ Escalate</span>`;
+    }
+  }
+
+  function renderExposure(e) {
+    const body = $('exposureBody');
+    const rows = [
+      ['Exposed routes', e.exposed_routes.join(', ') || '—'],
+      ['Refineries', e.exposed_refineries.join(', ') || '—'],
+      ['At-risk suppliers', e.at_risk_suppliers.join(', ') || 'none'],
+      ['Affected SPR sites', e.affected_spr_sites.join(', ') || 'none'],
+    ].map(([label, val]) => `<tr class="stagger"><th style="width:160px">${label}</th><td>${val}</td></tr>`).join('');
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile stagger"><div class="label">Exposed volume</div><div class="value"><span data-countup="${e.exposed_volume_bbl_per_day}">0</span><span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Refineries</div><div class="value"><span data-countup="${e.exposed_refineries.length}">0</span></div></div>
+        <div class="stat-tile stagger"><div class="label">At-risk suppliers</div><div class="value"><span data-countup="${e.at_risk_suppliers.length}">0</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Affected SPR sites</div><div class="value"><span data-countup="${e.affected_spr_sites.length}">0</span></div></div>
+      </div>
+      <table>${rows}</table>
+    `;
+    animateNumbers(body);
+  }
+
+  function renderImpact(i) {
+    const body = $('impactBody');
+    const bars = i.refinery_impacts.map(ri => `
+      <div class="hbar-row stagger">
+        <div class="hbar-top">
+          <span class="name">${ri.refinery}</span>
+          <span class="figure">−${fmtInt(ri.lost_intake_bbl_per_day)} of ${fmtInt(ri.normal_intake_bbl_per_day)} bbl/day</span>
+        </div>
+        <div class="hbar-track"><div class="hbar-fill" data-target="${ri.utilization_impact_pct}"></div></div>
+      </div>`).join('');
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile stagger"><div class="label">Supply gap</div><div class="value"><span data-countup="${i.total_supply_gap_bbl_per_day}">0</span><span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile stagger"><div class="label">% of national demand</div><div class="value"><span data-countup="${i.supply_gap_pct_of_demand}" data-decimals="1" data-suffix="%">0%</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Price impact</div><div class="value"><span data-countup="${i.price_impact_usd_bbl}" data-prefix="+$" data-decimals="2">+$0</span></div></div>
+      </div>
+      <div style="margin-top:18px">
+        <div style="font-size:0.66rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:600; margin-bottom:10px;">Utilization hit by refinery</div>
+        ${bars}
+      </div>
+    `;
+    animateNumbers(body);
+  }
+
+  function renderProcurement(p) {
+    const body = $('procurementBody');
+    const rows = p.options.map(o => `
+      <tr class="stagger">
+        <td>${o.refinery}</td>
+        <td>${o.supplier}</td>
+        <td class="num">${fmtInt(o.volume_bbl_per_day)}</td>
+        <td class="num">${o.lead_time_days >= 0 ? o.lead_time_days : '—'}</td>
+        <td>${o.compatible ? `<span style="color:var(--good)">✓ Matched</span>` : `<span style="color:var(--critical)">✕ Unmatched</span>`}</td>
+      </tr>`).join('');
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile stagger"><div class="label">Unmet gap</div><div class="value"><span data-countup="${p.unmet_gap_bbl_per_day}">0</span><span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile stagger"><div class="label">First cargo arrives</div><div class="value">day ${p.days_until_first_cargo ?? '—'}</div></div>
+        <div class="stat-tile stagger"><div class="label">Coverage</div><div style="margin-top:6px">${p.unmet_gap_bbl_per_day > 0 ? '<span class="badge pop warning">⚠ Partial</span>' : '<span class="badge pop good">✓ Full</span>'}</div></div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Refinery</th><th>Supplier</th><th>Volume (bbl/day)</th><th>Lead time (d)</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+    animateNumbers(body);
+  }
+
+  function renderSpr(s) {
+    const body = $('sprBody');
+    const maxAlloc = Math.max(1, ...Object.values(s.site_allocations));
+    const bars = Object.entries(s.site_allocations)
+      .filter(([, v]) => v > 0)
+      .map(([name, v]) => `
+        <div class="site-bar-row stagger">
+          <div>${name}</div>
+          <div class="bar-track"><div class="bar-fill" data-target="${(v/maxAlloc*100).toFixed(0)}"></div></div>
+          <div class="site-value">${fmtInt(v)} bbl/day</div>
+        </div>`).join('') || '<span class="empty-note">No draw allocated.</span>';
+    body.innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile stagger"><div class="label">Total draw</div><div class="value"><span data-countup="${s.total_draw_bbl_per_day}">0</span><span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Duration</div><div class="value"><span data-countup="${s.draw_duration_days}">0</span><span class="unit">days</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Total drawn</div><div class="value"><span data-countup="${s.total_drawn_mmbbl}" data-decimals="1">0</span><span class="unit">MMbbl</span></div></div>
+        <div class="stat-tile stagger"><div class="label">Feasibility</div><div style="margin-top:6px">${s.feasible ? '<span class="badge pop good">✓ Feasible</span>' : '<span class="badge pop critical">✕ Escalate</span>'}</div></div>
+      </div>
+      <div style="margin-top:14px">${bars}</div>
+      <div class="risk-summary stagger">${s.notes || ''}</div>
+    `;
+    animateNumbers(body);
+  }
+
+  function renderActions(items) {
+    const body = $('actionsBody');
+    body.innerHTML = `<ol class="actions">${
+      items.map(a => `<li class="stagger ${a.startsWith('WARNING') ? 'warning-item' : ''}">${a}</li>`).join('')
+    }</ol>`;
+    animateNumbers(body);
+  }
+
+  function speakSummary(d) {
+    if (!('speechSynthesis' in window)) return;
+    const parts = [
+      d.risk_summary,
+      `Exposed volume ${fmtInt(d.exposure.exposed_volume_bbl_per_day)} barrels per day across ${d.exposure.exposed_refineries.length} refineries.`,
+      `Supply gap ${fmtInt(d.impact.total_supply_gap_bbl_per_day)} barrels per day, ${d.impact.supply_gap_pct_of_demand} percent of national demand.`,
+      d.spr.feasible ? `Strategic reserve draw is feasible, covering the bridge period.` : `Warning: proposed reserve draw does not fully cover the bridge period.`,
+      ...d.action_items.slice(0, 3),
+    ];
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(parts.join(' ')));
+  }
+
+  function render(d) {
+    lastData = d;
+    renderRisk(d);
+    renderExposure(d.exposure);
+    renderImpact(d.impact);
+    renderProcurement(d.procurement);
+    renderSpr(d.spr);
+    renderActions(d.action_items);
+  }
+
+  function setStatus(mode, text) {
+    const line = $('statusLine');
+    line.classList.remove('busy', 'ready', 'error');
+    line.classList.add(mode);
+    $('statusText').textContent = text;
+  }
+
+  async function runNow() {
+    if (fetching) return;
+    fetching = true;
+    $('runBtn').disabled = true;
+    setStatus('busy', 'Running pipeline… (news fetch can take several seconds)');
+
+    const params = new URLSearchParams({
+      region: $('region').value || 'Hormuz',
+      disruption: $('disruption').value || '0.5',
+    });
+    if ($('seed').value !== '') params.set('seed', $('seed').value);
+
+    try {
+      const res = await fetch('/api/run?' + params.toString());
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      render(data);
+      setStatus('ready', `Last updated: ${new Date().toLocaleTimeString()}`);
+      if ($('autoSpeak').checked) speakSummary(data);
+    } catch (err) {
+      setStatus('error', `Run failed: ${err.message}`);
+    } finally {
+      fetching = false;
+      $('runBtn').disabled = false;
+    }
+  }
+
+  function setupAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const ms = Number($('interval').value);
+    if (ms > 0) refreshTimer = setInterval(runNow, ms);
+  }
+
+  $('runBtn').addEventListener('click', runNow);
+  $('speakBtn').addEventListener('click', () => { if (lastData) speakSummary(lastData); });
+  $('interval').addEventListener('change', setupAutoRefresh);
+
+  setupAutoRefresh();
+  runNow();
+})();
+</script>
+</body>
+</html>
