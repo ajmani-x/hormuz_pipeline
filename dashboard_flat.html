@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hormuz Supply Chain — Live Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --success-text:   #006300;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --warning-text:   #7a5200;
+    --serious:        #ec835a;
+    --critical:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --success-text:   #0ca30c;
+      --good:           #0ca30c;
+      --warning:        #fab219;
+      --warning-text:   #ffcf66;
+      --serious:        #ec835a;
+      --critical:       #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --success-text:   #0ca30c;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --warning-text:   #ffcf66;
+    --serious:        #ec835a;
+    --critical:       #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 0.88rem; max-width: 60ch; }
+  .badge-demo { display: inline-block; margin-top: 6px; font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+
+  .theme-toggle {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.85rem;
+  }
+
+  .panel {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-top: 16px;
+  }
+  .panel h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 12px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-secondary); }
+  .field input, .field select {
+    font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--page); color: var(--text-primary); min-width: 120px;
+  }
+  .btn {
+    font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--series-1); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+  }
+  .btn.secondary { background: var(--page); color: var(--text-primary); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .status-line { font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; }
+  .status-line.error { color: var(--critical); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat-tile { background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-tile .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat-tile .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .stat-tile .unit { font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; margin-left: 4px; }
+
+  .bar-track { height: 10px; border-radius: 999px; background: var(--gridline); overflow: hidden; margin-top: 8px; }
+  .bar-fill { height: 100%; background: var(--series-1); border-radius: 999px 0 0 999px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .badge.good { color: var(--success-text); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .badge.warning { color: var(--warning-text); background: color-mix(in srgb, var(--warning) 22%, transparent); }
+  .badge.critical { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 4px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--gridline); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .site-bar-row { display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: 10px; margin-top: 8px; font-size: 0.85rem; }
+  .site-bar-row .site-name { color: var(--text-secondary); }
+  .site-bar-row .site-value { font-variant-numeric: tabular-nums; text-align: right; min-width: 90px; }
+
+  ol.actions { margin: 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.7; }
+  ol.actions li.warning-item { color: var(--critical); font-weight: 600; }
+
+  .empty-note { color: var(--text-muted); font-size: 0.85rem; }
+  .risk-summary { font-size: 0.92rem; line-height: 1.5; margin-top: 6px; }
+
+  footer { margin-top: 28px; font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Strait of Hormuz — Supply Chain Disruption</h1>
+      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News signals are real (GDELT); reference network and market data are synthetic/illustrative — mechanics demo, not a live risk assessment.</div>
+      <span class="badge-demo">DEMO DATA</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">🌓 Theme</button>
+  </header>
+
+  <section class="panel">
+    <h2>Scenario Controls</h2>
+    <div class="controls">
+      <div class="field">
+        <label for="region">Region</label>
+        <input id="region" type="text" value="Hormuz">
+      </div>
+      <div class="field">
+        <label for="disruption">Disruption (0–1)</label>
+        <input id="disruption" type="number" min="0" max="1" step="0.05" value="0.5">
+      </div>
+      <div class="field">
+        <label for="seed">Seed (blank = live/random)</label>
+        <input id="seed" type="number" placeholder="random">
+      </div>
+      <div class="field">
+        <label for="interval">Auto-refresh</label>
+        <select id="interval">
+          <option value="0">Off</option>
+          <option value="30000">Every 30s</option>
+          <option value="60000" selected>Every 60s</option>
+          <option value="120000">Every 2 min</option>
+          <option value="300000">Every 5 min</option>
+        </select>
+      </div>
+      <button class="btn" id="runBtn" type="button">Run now</button>
+      <button class="btn secondary" id="speakBtn" type="button">🔊 Read report aloud</button>
+      <label class="field" style="flex-direction: row; align-items: center; gap: 6px;">
+        <input id="autoSpeak" type="checkbox" style="min-width:auto;">
+        <span>Auto-read on refresh</span>
+      </label>
+    </div>
+    <div class="status-line" id="statusLine">Not run yet.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Geopolitical Risk</h2>
+    <div id="riskBody"><span class="empty-note">Run the pipeline to see results.</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Exposure (Digital Twin)</h2>
+    <div id="exposureBody"><span class="empty-note">—</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Disruption Impact</h2>
+    <div id="impactBody"><span class="empty-note">—</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Procurement Plan</h2>
+    <div id="procurementBody"><span class="empty-note">—</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>SPR Recommendation</h2>
+    <div id="sprBody"><span class="empty-note">—</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Recommended Actions</h2>
+    <div id="actionsBody"><span class="empty-note">—</span></div>
+  </section>
+
+  <footer>hormuz_pipeline — local prototype dashboard. All inputs illustrative except news signals.</footer>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const themeToggle = document.getElementById('themeToggle');
+  const stored = localStorage.getItem('hormuz-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  themeToggle.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('hormuz-theme', next);
+  });
+
+  const $ = (id) => document.getElementById(id);
+  const fmtInt = (n) => Number(n).toLocaleString();
+  const fmtPct = (n) => `${(Number(n) * 100).toFixed(0)}%`;
+
+  let fetching = false;
+  let refreshTimer = null;
+  let lastData = null;
+
+  function riskLevel(score) {
+    if (score >= 0.75) return { cls: 'critical', label: 'Critical' };
+    if (score >= 0.50) return { cls: 'critical', label: 'Serious' };
+    if (score >= 0.25) return { cls: 'warning', label: 'Elevated' };
+    return { cls: 'good', label: 'Low' };
+  }
+
+  function renderRisk(d) {
+    const score = d.top_risk_score || 0;
+    const level = riskLevel(score);
+    $('riskBody').innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="label">Top flagged route</div>
+          <div class="value" style="font-size:1.15rem">${d.top_risk_route || '—'}</div>
+        </div>
+        <div class="stat-tile">
+          <div class="label">Risk score</div>
+          <div class="value">${fmtPct(score)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(score*100).toFixed(0)}%"></div></div>
+        </div>
+        <div class="stat-tile">
+          <div class="label">Status</div>
+          <div style="margin-top:6px"><span class="badge ${level.cls}">${level.cls === 'good' ? '✓' : '⚠'} ${level.label}</span></div>
+        </div>
+      </div>
+      <div class="risk-summary">${d.risk_summary || ''}</div>
+    `;
+  }
+
+  function renderExposure(e) {
+    $('exposureBody').innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Exposed volume</div><div class="value">${fmtInt(e.exposed_volume_bbl_per_day)}<span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile"><div class="label">Refineries</div><div class="value">${e.exposed_refineries.length}</div></div>
+        <div class="stat-tile"><div class="label">At-risk suppliers</div><div class="value">${e.at_risk_suppliers.length}</div></div>
+        <div class="stat-tile"><div class="label">Affected SPR sites</div><div class="value">${e.affected_spr_sites.length}</div></div>
+      </div>
+      <table>
+        <tr><th style="width:160px">Exposed routes</th><td>${e.exposed_routes.join(', ') || '—'}</td></tr>
+        <tr><th>Refineries</th><td>${e.exposed_refineries.join(', ') || '—'}</td></tr>
+        <tr><th>At-risk suppliers</th><td>${e.at_risk_suppliers.join(', ') || 'none'}</td></tr>
+        <tr><th>Affected SPR sites</th><td>${e.affected_spr_sites.join(', ') || 'none'}</td></tr>
+      </table>
+    `;
+  }
+
+  function renderImpact(i) {
+    const rows = i.refinery_impacts.map(ri => `
+      <tr>
+        <td>${ri.refinery}</td>
+        <td class="num">${fmtInt(ri.normal_intake_bbl_per_day)}</td>
+        <td class="num">${fmtInt(ri.lost_intake_bbl_per_day)}</td>
+        <td class="num">${ri.utilization_impact_pct}%</td>
+      </tr>`).join('');
+    $('impactBody').innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Supply gap</div><div class="value">${fmtInt(i.total_supply_gap_bbl_per_day)}<span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile"><div class="label">% of national demand</div><div class="value">${i.supply_gap_pct_of_demand}%</div></div>
+        <div class="stat-tile"><div class="label">Price impact</div><div class="value">+$${i.price_impact_usd_bbl}<span class="unit">/bbl</span></div></div>
+      </div>
+      <table>
+        <thead><tr><th>Refinery</th><th>Normal intake</th><th>Lost intake</th><th>Utilization hit</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderProcurement(p) {
+    const rows = p.options.map(o => `
+      <tr>
+        <td>${o.refinery}</td>
+        <td>${o.supplier}</td>
+        <td class="num">${fmtInt(o.volume_bbl_per_day)}</td>
+        <td class="num">${o.lead_time_days >= 0 ? o.lead_time_days : '—'}</td>
+        <td>${o.compatible ? `<span style="color:var(--success-text)">✓ Matched</span>` : `<span style="color:var(--critical)">✕ Unmatched</span>`}</td>
+      </tr>`).join('');
+    $('procurementBody').innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Unmet gap</div><div class="value">${fmtInt(p.unmet_gap_bbl_per_day)}<span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile"><div class="label">First cargo arrives</div><div class="value">day ${p.days_until_first_cargo ?? '—'}</div></div>
+        <div class="stat-tile"><div class="label">Coverage</div><div style="margin-top:6px">${p.unmet_gap_bbl_per_day > 0 ? '<span class="badge warning">⚠ Partial</span>' : '<span class="badge good">✓ Full</span>'}</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Refinery</th><th>Supplier</th><th>Volume (bbl/day)</th><th>Lead time (d)</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderSpr(s) {
+    const maxAlloc = Math.max(1, ...Object.values(s.site_allocations));
+    const bars = Object.entries(s.site_allocations)
+      .filter(([, v]) => v > 0)
+      .map(([name, v]) => `
+        <div class="site-bar-row">
+          <div class="site-name">${name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(v/maxAlloc*100).toFixed(0)}%"></div></div>
+          <div class="site-value">${fmtInt(v)} bbl/day</div>
+        </div>`).join('') || '<span class="empty-note">No draw allocated.</span>';
+    $('sprBody').innerHTML = `
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Total draw</div><div class="value">${fmtInt(s.total_draw_bbl_per_day)}<span class="unit">bbl/day</span></div></div>
+        <div class="stat-tile"><div class="label">Duration</div><div class="value">${s.draw_duration_days}<span class="unit">days</span></div></div>
+        <div class="stat-tile"><div class="label">Total drawn</div><div class="value">${s.total_drawn_mmbbl}<span class="unit">MMbbl</span></div></div>
+        <div class="stat-tile"><div class="label">Feasibility</div><div style="margin-top:6px">${s.feasible ? '<span class="badge good">✓ Feasible</span>' : '<span class="badge critical">✕ Escalate</span>'}</div></div>
+      </div>
+      ${bars}
+      <div class="risk-summary">${s.notes || ''}</div>
+    `;
+  }
+
+  function renderActions(items) {
+    $('actionsBody').innerHTML = `<ol class="actions">${
+      items.map(a => `<li class="${a.startsWith('WARNING') ? 'warning-item' : ''}">${a}</li>`).join('')
+    }</ol>`;
+  }
+
+  function speakSummary(d) {
+    if (!('speechSynthesis' in window)) return;
+    const parts = [
+      d.risk_summary,
+      `Exposed volume ${fmtInt(d.exposure.exposed_volume_bbl_per_day)} barrels per day across ${d.exposure.exposed_refineries.length} refineries.`,
+      `Supply gap ${fmtInt(d.impact.total_supply_gap_bbl_per_day)} barrels per day, ${d.impact.supply_gap_pct_of_demand} percent of national demand.`,
+      d.spr.feasible
+        ? `Strategic reserve draw is feasible, covering the bridge period.`
+        : `Warning: proposed reserve draw does not fully cover the bridge period.`,
+      ...d.action_items.slice(0, 3),
+    ];
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(parts.join(' ')));
+  }
+
+  function render(d) {
+    lastData = d;
+    renderRisk(d);
+    renderExposure(d.exposure);
+    renderImpact(d.impact);
+    renderProcurement(d.procurement);
+    renderSpr(d.spr);
+    renderActions(d.action_items);
+  }
+
+  async function runNow() {
+    if (fetching) return;
+    fetching = true;
+    $('runBtn').disabled = true;
+    $('statusLine').classList.remove('error');
+    $('statusLine').textContent = 'Running pipeline… (news fetch can take several seconds)';
+
+    const params = new URLSearchParams({
+      region: $('region').value || 'Hormuz',
+      disruption: $('disruption').value || '0.5',
+    });
+    if ($('seed').value !== '') params.set('seed', $('seed').value);
+
+    try {
+      const res = await fetch('/api/run?' + params.toString());
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      render(data);
+      $('statusLine').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+      if ($('autoSpeak').checked) speakSummary(data);
+    } catch (err) {
+      $('statusLine').classList.add('error');
+      $('statusLine').textContent = `Run failed: ${err.message}`;
+    } finally {
+      fetching = false;
+      $('runBtn').disabled = false;
+    }
+  }
+
+  function setupAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const ms = Number($('interval').value);
+    if (ms > 0) refreshTimer = setInterval(runNow, ms);
+  }
+
+  $('runBtn').addEventListener('click', runNow);
+  $('speakBtn').addEventListener('click', () => { if (lastData) speakSummary(lastData); });
+  $('interval').addEventListener('change', setupAutoRefresh);
+
+  setupAutoRefresh();
+  runNow();
+})();
+</script>
+</body>
+</html>
