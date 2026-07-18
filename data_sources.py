@@ -4,12 +4,11 @@ an illustrative Indian refinery / crude supply network.
 
 IMPORTANT: The reference numbers here (capacities, dependencies, reserve
 volumes) are illustrative placeholders for demo purposes, NOT sourced from a
-live dataset. To make this a real system, swap the functions in this file for
-real integrations:
+live dataset. generate_news_signals() (GDELT) and generate_market_signals()
+(Yahoo Finance) already pull real live data — see their docstrings. Still
+synthetic, and the remaining integration points for a real system:
 
-  - generate_news_signals()   -> news/geopolitics API + NLP sentiment model
   - generate_ais_signals()    -> AIS tanker tracking provider (e.g. Kpler, MarineTraffic)
-  - generate_market_signals() -> market data provider (e.g. Refinitiv, Platts)
   - REFINERIES / SUPPLIERS / SPR_SITES -> internal ERP / national statistics
 
 Everything downstream (agents/, orchestrator.py) only depends on the
@@ -217,11 +216,47 @@ def generate_ais_signals(seed: int = None) -> list:
     return signals
 
 
-def generate_market_signals(seed: int = None) -> list:
+YAHOO_CHART_API = "https://query1.finance.yahoo.com/v8/finance/chart"
+
+
+def _fetch_yahoo_quote(ticker: str, timeout: float = 10.0) -> dict:
+    url = f"{YAHOO_CHART_API}/{ticker}?interval=1d&range=1mo"
+    req = urllib.request.Request(url, headers={"User-Agent": "hormuz-pipeline/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read())
+    result = data["chart"]["result"][0]
+    price = result["meta"]["regularMarketPrice"]
+    closes = [c for c in result["indicators"]["quote"][0]["close"] if c is not None]
+    week_ago = closes[-6] if len(closes) >= 6 else closes[0]
+    change_pct_7d = (price - week_ago) / week_ago * 100
+    return {"price": price, "change_pct_7d": change_pct_7d}
+
+
+def generate_market_signals(seed: int = None, timeout: float = 10.0) -> list:
+    """Live Brent/WTI prices from Yahoo Finance's public (keyless, unofficial)
+    quote endpoint — real price levels and real trailing 7-day % change, not
+    synthetic. freight_rate_index has no equivalent free/keyless real-time
+    source (real tanker freight indices are paid data), so it stays an
+    illustrative placeholder alongside the two real fields. Falls back to
+    fully synthetic values on any fetch failure so the pipeline still runs.
+    """
     rng = random.Random(seed)
+    try:
+        brent = _fetch_yahoo_quote("BZ=F", timeout)
+        wti = _fetch_yahoo_quote("CL=F", timeout)
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError) as exc:
+        print(f"[hormuz_pipeline] Yahoo Finance fetch failed ({exc}); falling back to synthetic market signals.",
+              file=sys.stderr)
+        return [
+            MarketSignal("Brent", price_usd_bbl=rng.uniform(85, 105), price_change_pct_7d=rng.uniform(5, 18),
+                         freight_rate_index=rng.uniform(1.2, 1.8)),
+            MarketSignal("WTI", price_usd_bbl=rng.uniform(80, 100), price_change_pct_7d=rng.uniform(5, 18),
+                         freight_rate_index=rng.uniform(1.3, 2.0)),
+        ]
+
     return [
-        MarketSignal("Brent", price_usd_bbl=rng.uniform(85, 105), price_change_pct_7d=rng.uniform(5, 18),
+        MarketSignal("Brent", price_usd_bbl=round(brent["price"], 2), price_change_pct_7d=round(brent["change_pct_7d"], 2),
                      freight_rate_index=rng.uniform(1.2, 1.8)),
-        MarketSignal("Dubai", price_usd_bbl=rng.uniform(83, 103), price_change_pct_7d=rng.uniform(5, 18),
+        MarketSignal("WTI", price_usd_bbl=round(wti["price"], 2), price_change_pct_7d=round(wti["change_pct_7d"], 2),
                      freight_rate_index=rng.uniform(1.3, 2.0)),
     ]
