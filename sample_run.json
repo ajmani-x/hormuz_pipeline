@@ -4,25 +4,58 @@
   "exposure": {
     "scenario": "Strait of Hormuz flow disruption",
     "exposed_refineries": [
-      "BPCL Kochi"
+      "Reliance Jamnagar",
+      "Nayara Vadinar",
+      "BPCL Kochi",
+      "HPCL Mumbai"
     ],
     "exposed_routes": [
-      "Hormuz-Kochi"
+      "Hormuz-Gujarat",
+      "Hormuz-Kochi",
+      "Hormuz-Mumbai"
     ],
-    "exposed_volume_bbl_per_day": 310000,
-    "national_demand_bbl_per_day": 5000000
+    "exposed_volume_bbl_per_day": 2140000,
+    "national_demand_bbl_per_day": 5000000,
+    "at_risk_suppliers": [
+      "ADNOC",
+      "Iraq SOMO",
+      "Saudi Aramco"
+    ],
+    "affected_spr_sites": [
+      "Mangalore",
+      "Padur",
+      "Vizag"
+    ]
   },
   "impact": {
     "scenario": "Strait of Hormuz flow disruption",
     "disruption_pct_of_route": 0.5,
-    "total_supply_gap_bbl_per_day": 155000,
-    "supply_gap_pct_of_demand": 3.1,
-    "price_impact_usd_bbl": 1.7,
+    "total_supply_gap_bbl_per_day": 1070000,
+    "supply_gap_pct_of_demand": 21.4,
+    "price_impact_usd_bbl": 11.76,
     "refinery_impacts": [
+      {
+        "refinery": "Reliance Jamnagar",
+        "normal_intake_bbl_per_day": 1240000,
+        "lost_intake_bbl_per_day": 620000,
+        "utilization_impact_pct": 50.0
+      },
+      {
+        "refinery": "Nayara Vadinar",
+        "normal_intake_bbl_per_day": 400000,
+        "lost_intake_bbl_per_day": 200000,
+        "utilization_impact_pct": 50.0
+      },
       {
         "refinery": "BPCL Kochi",
         "normal_intake_bbl_per_day": 310000,
         "lost_intake_bbl_per_day": 155000,
+        "utilization_impact_pct": 50.0
+      },
+      {
+        "refinery": "HPCL Mumbai",
+        "normal_intake_bbl_per_day": 190000,
+        "lost_intake_bbl_per_day": 95000,
         "utilization_impact_pct": 50.0
       }
     ]
@@ -31,35 +64,86 @@
     "scenario": "Strait of Hormuz flow disruption",
     "options": [
       {
-        "refinery": "BPCL Kochi",
-        "supplier": "Saudi Aramco",
-        "route": "Hormuz-Gujarat",
-        "volume_bbl_per_day": 155000,
-        "lead_time_days": 10,
+        "refinery": "Reliance Jamnagar",
+        "supplier": "NNPC",
+        "route": "RedSea-WestCoast",
+        "volume_bbl_per_day": 100000,
+        "lead_time_days": 18,
         "compatible": true,
-        "notes": "Arab Light crude, 10d transit via Hormuz-Gujarat"
+        "notes": "Bonny Light crude, 18d transit via RedSea-WestCoast"
+      },
+      {
+        "refinery": "Reliance Jamnagar",
+        "supplier": "Rosneft",
+        "route": "CapeRoute-EastCoast",
+        "volume_bbl_per_day": 400000,
+        "lead_time_days": 21,
+        "compatible": true,
+        "notes": "Urals crude, 21d transit via CapeRoute-EastCoast"
+      },
+      {
+        "refinery": "Reliance Jamnagar",
+        "supplier": "US Gulf Exporters",
+        "route": "CapeRoute-EastCoast",
+        "volume_bbl_per_day": 120000,
+        "lead_time_days": 24,
+        "compatible": true,
+        "notes": "WTI Midland crude, 24d transit via CapeRoute-EastCoast"
+      },
+      {
+        "refinery": "Nayara Vadinar",
+        "supplier": "UNMATCHED",
+        "route": "n/a",
+        "volume_bbl_per_day": 200000,
+        "lead_time_days": -1,
+        "compatible": false,
+        "notes": "No compatible alternative supplier capacity found; candidate for SPR coverage."
+      },
+      {
+        "refinery": "BPCL Kochi",
+        "supplier": "UNMATCHED",
+        "route": "n/a",
+        "volume_bbl_per_day": 155000,
+        "lead_time_days": -1,
+        "compatible": false,
+        "notes": "No compatible alternative supplier capacity found; candidate for SPR coverage."
+      },
+      {
+        "refinery": "HPCL Mumbai",
+        "supplier": "UNMATCHED",
+        "route": "n/a",
+        "volume_bbl_per_day": 95000,
+        "lead_time_days": -1,
+        "compatible": false,
+        "notes": "No compatible alternative supplier capacity found; candidate for SPR coverage."
       }
     ],
-    "unmet_gap_bbl_per_day": 0,
-    "days_until_first_cargo": 10
+    "unmet_gap_bbl_per_day": 450000,
+    "days_until_first_cargo": 18
   },
   "spr": {
     "scenario": "Strait of Hormuz flow disruption",
     "site_allocations": {
-      "Mangalore": 150000
+      "Padur": 180000,
+      "Mangalore": 150000,
+      "Vizag": 120000
     },
-    "total_draw_bbl_per_day": 150000,
-    "draw_duration_days": 10,
-    "total_drawn_mmbbl": 1.5,
-    "replenish_after_day": 10,
-    "feasible": true,
-    "notes": "Covers 96.8% of the 155,000 bbl/day gap for 10 days, until first replacement cargo lands. Replenish reserve sites once procurement volumes are flowing."
+    "total_draw_bbl_per_day": 450000,
+    "draw_duration_days": 18,
+    "total_drawn_mmbbl": 8.1,
+    "replenish_after_day": 18,
+    "feasible": false,
+    "notes": "Covers 42.1% of the 1,070,000 bbl/day gap for 18 days, until first replacement cargo lands. Replenish reserve sites once procurement volumes are flowing."
   },
   "action_items": [
-    "Monitor 'Hormuz-Kochi' \u2014 risk score 50%. Escalate if disruption probability exceeds 75%.",
-    "Expect a supply gap of 155,000 bbl/day (3.1% of national demand); est. price impact +$1.7/bbl.",
-    "Procure 155,000 bbl/day from Saudi Aramco (fastest compatible alternative).",
-    "Release 150,000 bbl/day from SPR (Mangalore (150,000 bbl/day)) for 10 days, pending human sign-off.",
-    "Begin replenishing SPR sites after day 10 once cargoes land."
+    "Monitor 'Hormuz-Kochi' — risk score 50%. Escalate if disruption probability exceeds 75%.",
+    "Expect a supply gap of 1,070,000 bbl/day (21.4% of national demand); est. price impact +$11.76/bbl.",
+    "Procure 100,000 bbl/day from NNPC (fastest compatible alternative).",
+    "Procure 400,000 bbl/day from Rosneft (fastest compatible alternative).",
+    "Procure 120,000 bbl/day from US Gulf Exporters (fastest compatible alternative).",
+    "450,000 bbl/day remains uncovered by alternative procurement — route to SPR release.",
+    "Release 450,000 bbl/day from SPR (Padur (180,000 bbl/day), Mangalore (150,000 bbl/day), Vizag (120,000 bbl/day)) for 18 days, pending human sign-off.",
+    "Begin replenishing SPR sites after day 18 once cargoes land.",
+    "WARNING: proposed SPR draw does not cover the bridge period — escalate for policy decision."
   ]
 }
