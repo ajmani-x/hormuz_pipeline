@@ -61,6 +61,8 @@ def run_pipeline(scenario_name: str = "Hormuz disruption scenario",
         procurement=plan,
         spr=spr_rec,
         action_items=action_items,
+        top_risk_route=top.route,
+        top_risk_score=top.risk_score,
     )
 
 

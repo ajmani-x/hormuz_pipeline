@@ -117,6 +117,8 @@ class ExposureReport:
     exposed_routes: list
     exposed_volume_bbl_per_day: int
     national_demand_bbl_per_day: int
+    at_risk_suppliers: list = field(default_factory=list)   # suppliers shipping via an exposed route
+    affected_spr_sites: list = field(default_factory=list)  # SPR sites backing an exposed refinery
 
 
 # ---------------------------------------------------------------------------
@@ -193,3 +195,5 @@ class FinalRecommendation:
     procurement: ProcurementPlan
     spr: SPRRecommendation
     action_items: list = field(default_factory=list)
+    top_risk_route: str = ""
+    top_risk_score: float = 0.0
