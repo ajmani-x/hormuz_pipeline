@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hormuz Agent</title>
+<style>
+  :root {
+    --bg:             #08080b;
+    --surface-1:      #111116;
+    --surface-2:      #17171e;
+    --text-primary:   #f4f4f6;
+    --text-secondary: #a3a3ae;
+    --text-muted:     #71717f;
+    --gridline:       #26262f;
+    --border:         rgba(255,255,255,0.08);
+    --border-strong:  rgba(255,255,255,0.14);
+    --accent:         #7c6cf6;
+    --accent-bright:  #9d8fff;
+    --accent-dim:     rgba(124,108,246,0.14);
+    --teal:           #2dd4bf;
+    --good:           #34d399;
+    --warning:        #fbbf24;
+    --critical:       #fb7185;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    font-family: -apple-system, "Inter", system-ui, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  #webgl-bg { position: fixed; inset: 0; z-index: 0; }
+
+  /* --- Intro: scroll-to-fly-through landing, before the agent chat --- */
+  #intro-overlay {
+    position: fixed; inset: 0; z-index: 6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; transition: opacity 0.6s ease; pointer-events: none;
+  }
+  #intro-overlay.hidden { opacity: 0; }
+  .intro-heading { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .intro-title {
+    margin: 0; font-size: clamp(40px, 8vw, 84px); font-weight: 650; letter-spacing: -0.01em;
+    text-shadow: 0 0 50px rgba(124,108,246,0.4);
+  }
+  .intro-preview {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+    margin-top: 34px; opacity: 0; animation: chipsIn 0.7s ease 0.4s forwards;
+  }
+  @keyframes chipsIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .intro-chip {
+    display: flex; flex-direction: column; gap: 4px; text-align: left;
+    padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03); backdrop-filter: blur(8px); min-width: 130px;
+  }
+  .intro-chip-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .intro-chip-value { font-size: 15px; font-weight: 650; color: var(--text-primary); }
+  .intro-hint {
+    margin-top: 26px; font-size: 13px; letter-spacing: 0.08em; color: var(--text-muted);
+    text-transform: uppercase; animation: introPulse 2.4s ease-in-out infinite; transition: opacity 0.3s ease;
+  }
+  @keyframes introPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+  .intro-progress { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(163,164,189,0.15); }
+  .intro-progress-bar {
+    height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+    box-shadow: 0 0 12px rgba(157,143,255,0.7); transition: width 0.1s linear;
+  }
+
+  #agent-wrap { position: fixed; inset: 0; z-index: 5; opacity: 0; pointer-events: none; transition: opacity 0.7s ease; }
+  #agent-wrap.active { opacity: 1; pointer-events: auto; }
+  .app { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; max-width: 820px; margin: 0 auto; }
+
+  header { padding: 18px 20px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .brand { display: flex; flex-direction: column; }
+  .eyebrow { letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; color: var(--accent-bright); font-weight: 600; }
+  h1 { font-size: 1.05rem; margin: 2px 0 0; font-weight: 650; }
+  .freshness { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-muted); }
+  .freshness .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px rgba(52,211,153,0.6); }
+  .freshness .dot.stale { background: var(--warning); box-shadow: 0 0 6px rgba(251,191,36,0.6); }
+  .freshness .dot.down { background: var(--critical); box-shadow: 0 0 6px rgba(251,113,133,0.5); }
+
+  .starters { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 14px; }
+  .starter-chip {
+    font: inherit; font-size: 0.76rem; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .starter-chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+  #transcript { flex: 1; overflow-y: auto; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; gap: 10px; max-width: 100%; }
+  .msg .avatar {
+    flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; margin-top: 2px;
+  }
+  .msg.user .avatar { background: var(--surface-2); color: var(--text-secondary); }
+  .msg.agent .avatar { background: linear-gradient(135deg, var(--accent), var(--teal)); color: #04040a; }
+  .msg .bubble {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 10px 14px; font-size: 0.9rem; line-height: 1.55; color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 26px rgba(0,0,0,0.28);
+  }
+  .msg.user .bubble { background: var(--accent-dim); border-color: rgba(124,108,246,0.28); }
+  .msg .meta { font-size: 0.66rem; color: var(--text-muted); margin-top: 5px; }
+
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg { animation: msgIn 0.35s ease forwards; }
+
+  .thinking .bubble { display: flex; gap: 4px; align-items: center; padding: 13px 16px; }
+  .thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: bounce 1.1s ease-in-out infinite; }
+  .thinking i:nth-child(2) { animation-delay: 0.15s; }
+  .thinking i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+  footer { padding: 14px 20px 22px; }
+  .input-row {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px;
+    padding: 8px 8px 8px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.28);
+  }
+  .input-row:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  #questionInput {
+    flex: 1; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.92rem;
+    resize: none; max-height: 120px; padding: 8px 0; outline: none;
+  }
+  #questionInput::placeholder { color: var(--text-muted); }
+  .icon-btn {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-secondary); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;
+  }
+  .icon-btn:hover { border-color: var(--border-strong); }
+  .icon-btn.mic.listening { background: var(--critical); border-color: var(--critical); color: white; animation: micPulse 1.2s ease-in-out infinite; }
+  @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251,113,133,0.5); } 50% { box-shadow: 0 0 0 8px rgba(251,113,133,0); } }
+  .icon-btn.send { background: var(--accent); border-color: var(--accent); color: white; }
+  .icon-btn.send:hover { background: var(--accent-bright); }
+  .icon-btn:disabled { opacity: 0.4; cursor: default; }
+  .icon-btn.mute-toggle.muted { color: var(--text-muted); }
+
+  .footer-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding: 0 4px; }
+  .hint-text { font-size: 0.7rem; color: var(--text-muted); }
+  .status-text { font-size: 0.7rem; color: var(--text-muted); }
+  .status-text.error { color: var(--critical); }
+</style>
+</head>
+<body>
+<div id="webgl-bg"></div>
+
+<div id="intro-overlay">
+  <div class="intro-heading">
+    <span class="eyebrow">Supply Chain Intelligence</span>
+    <h1 class="intro-title">Hormuz Agent</h1>
+  </div>
+  <div class="intro-preview" id="introPreview">
+    <div class="intro-chip"><span class="intro-chip-label">Risk level</span><span class="intro-chip-value" id="introRisk">Loading live data…</span></div>
+    <div class="intro-chip"><span class="intro-chip-label">Supply gap</span><span class="intro-chip-value" id="introGap">—</span></div>
+    <div class="intro-chip"><span class="intro-chip-label">Tankers tracked</span><span class="intro-chip-value" id="introTankers">—</span></div>
+    <div class="intro-chip"><span class="intro-chip-label">Brent crude</span><span class="intro-chip-value" id="introBrent">—</span></div>
+  </div>
+  <div class="intro-hint" id="introHint">Scroll to enter the agent</div>
+  <div class="intro-progress"><div class="intro-progress-bar" id="introProgressBar"></div></div>
+</div>
+
+<div id="agent-wrap">
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">Supply Chain Intelligence</span>
+      <h1>Hormuz Agent</h1>
+    </div>
+    <div class="freshness"><i class="dot" id="freshDot"></i><span id="freshText">Connecting…</span></div>
+  </header>
+
+  <div class="starters" id="starters">
+    <button class="starter-chip" type="button">What's the current risk level?</button>
+    <button class="starter-chip" type="button">Is the SPR drawdown feasible?</button>
+    <button class="starter-chip" type="button">What's Brent crude trading at right now?</button>
+    <button class="starter-chip" type="button">Which refineries are exposed?</button>
+    <button class="starter-chip" type="button">Summarize the recommended actions</button>
+  </div>
+
+  <div id="transcript">
+    <div class="msg agent">
+      <div class="avatar">H</div>
+      <div>
+        <div class="bubble">Ask me about Hormuz disruption risk, exposure, procurement, or the SPR recommendation — I'm grounded in the live pipeline data (real news, real market prices, real tanker counts) plus the computed scenario. Type, or tap the mic to speak.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="input-row">
+      <textarea id="questionInput" rows="1" placeholder="Ask about risk, exposure, procurement, SPR…"></textarea>
+      <button class="icon-btn mic" id="micBtn" type="button" title="Speak your question">🎙️</button>
+      <button class="icon-btn send" id="sendBtn" type="button" title="Send">➤</button>
+    </div>
+    <div class="footer-controls">
+      <span class="hint-text">Enter to send · Shift+Enter for a new line</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="status-text" id="statusText"></span>
+        <button class="icon-btn mute-toggle" id="muteBtn" type="button" title="Mute spoken answers" style="width:30px; height:30px; font-size:13px;">🔊</button>
+      </div>
+    </div>
+  </footer>
+</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/* ---------------- Intro flight + WebGL glass-block background ----------------
+   Scroll-driven camera flight through translucent glass blocks, handing off
+   to the agent chat UI. Ported from dashboard.html's proven version — same
+   scene, same math, just enters the chat instead of a data grid. */
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 5000);
+camera.position.set(0, 0, 900);
+
+let phase = 'intro';
+let scrollRaw = 0;
+let scrollSmoothed = 0;
+let introEntered = false;
+
+window.addEventListener('wheel', (e) => {
+  if (phase !== 'intro') return;
+  e.preventDefault();
+  scrollRaw = THREE.MathUtils.clamp(scrollRaw + e.deltaY * 0.00065, 0, 1);
+}, { passive: false });
+
+let touchStartY = null;
+window.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+window.addEventListener('touchmove', (e) => {
+  if (phase !== 'intro' || touchStartY === null) return;
+  const dy = touchStartY - e.touches[0].clientY;
+  touchStartY = e.touches[0].clientY;
+  scrollRaw = THREE.MathUtils.clamp(scrollRaw + dy * 0.0022, 0, 1);
+}, { passive: true });
+
+const CAMERA_INTRO_CURVE = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0, 3200),
+  new THREE.Vector3(260, 90, 2550),
+  new THREE.Vector3(-300, -70, 1900),
+  new THREE.Vector3(160, 110, 1400),
+  new THREE.Vector3(-110, 20, 1150),
+  new THREE.Vector3(30, 40, 980),
+  new THREE.Vector3(0, 0, 900),
+], false, 'catmullrom', 0.4);
+
+function enterAgent() {
+  phase = 'agent';
+  document.getElementById('intro-overlay').classList.add('hidden');
+  document.getElementById('agent-wrap').classList.add('active');
+}
+
+const bgScene = new THREE.Scene();
+bgScene.background = new THREE.Color(0x08080b);
+bgScene.fog = new THREE.Fog(0x08080b, 500, 2200);
+bgScene.add(new THREE.AmbientLight(0xffffff, 0.25));
+const pointLight = new THREE.PointLight(0x9d8fff, 0.7);
+pointLight.position.set(0, 300, 300);
+bgScene.add(pointLight);
+const glassLight1 = new THREE.PointLight(0x7c6cf6, 1.8, 3000);
+glassLight1.position.set(-400, 250, -300);
+bgScene.add(glassLight1);
+const glassLight2 = new THREE.PointLight(0x2dd4bf, 1.6, 3000);
+glassLight2.position.set(500, -200, -700);
+bgScene.add(glassLight2);
+
+const webglRenderer = new THREE.WebGLRenderer({ antialias: true });
+webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+webglRenderer.setSize(window.innerWidth, window.innerHeight);
+webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+webglRenderer.toneMappingExposure = 1.1;
+document.getElementById('webgl-bg').appendChild(webglRenderer.domElement);
+
+const pmrem = new THREE.PMREMGenerator(webglRenderer);
+bgScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const FLIGHT_SCALE = 5;
+const flightCurve = new THREE.CatmullRomCurve3(
+  [
+    [0, 0, 10], [3, 1.2, -12], [-4.5, -1, -38],
+    [2.5, 2, -68], [-2, 0.2, -102], [0.5, 0.8, -140], [0, 0, -178],
+  ].map(([x, y, z]) => new THREE.Vector3(x * FLIGHT_SCALE, y * FLIGHT_SCALE, z * FLIGHT_SCALE)),
+  false, 'catmullrom', 0.4
+);
+
+const glassBlocks = [];
+const GLASS_GEO = new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
+
+function makeGlassBlock({ pos, size, tint, edge }) {
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: tint,
+    metalness: 0,
+    roughness: 0.18,
+    transmission: 0.92,
+    thickness: 3.2,
+    attenuationColor: new THREE.Color(tint),
+    attenuationDistance: 180,
+    ior: 1.45,
+    envMapIntensity: 1.6,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.15,
+    transparent: true,
+  });
+  const mesh = new THREE.Mesh(GLASS_GEO, mat);
+  mesh.position.set(...pos);
+  mesh.scale.set(...size);
+  mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * 0.3);
+  bgScene.add(mesh);
+
+  const edgeMesh = new THREE.LineSegments(
+    new THREE.EdgesGeometry(GLASS_GEO),
+    new THREE.LineBasicMaterial({ color: edge, transparent: true, opacity: 0.6 })
+  );
+  edgeMesh.position.copy(mesh.position);
+  edgeMesh.scale.copy(mesh.scale);
+  edgeMesh.rotation.copy(mesh.rotation);
+  bgScene.add(edgeMesh);
+
+  glassBlocks.push({
+    mesh, edgeMesh,
+    basePos: mesh.position.clone(),
+    baseRot: mesh.rotation.clone(),
+    phase: Math.random() * Math.PI * 2,
+    spinSpeed: (Math.random() - 0.5) * 0.06,
+  });
+}
+
+const BLOCK_LAYOUT = [
+  { t: 0.12, side: -1, lateral: 1.0, size: [150, 190, 55], tint: 0x7c6cf6 },
+  { t: 0.22, side: 1, lateral: 0.8, size: [120, 120, 45], tint: 0x2dd4bf },
+  { t: 0.35, side: -1, lateral: 1.3, size: [95, 240, 40], tint: 0x7c6cf6 },
+  { t: 0.48, side: 1, lateral: 1.0, size: [170, 100, 50], tint: 0x9d8fff },
+  { t: 0.6, side: -1, lateral: 0.7, size: [110, 150, 40], tint: 0x2dd4bf },
+  { t: 0.74, side: 1, lateral: 1.2, size: [140, 170, 55], tint: 0x7c6cf6 },
+  { t: 0.86, side: -1, lateral: 0.9, size: [100, 100, 40], tint: 0x9d8fff },
+];
+BLOCK_LAYOUT.forEach(({ t, side, lateral, size, tint }) => {
+  const point = flightCurve.getPointAt(t);
+  const tangent = flightCurve.getTangentAt(t);
+  const normal = new THREE.Vector3(0, 1, 0).cross(tangent).normalize();
+  const pos = point.clone().addScaledVector(normal, side * lateral * 60 * FLIGHT_SCALE);
+  makeGlassBlock({ pos: [pos.x, pos.y, pos.z], size, tint, edge: 0xeae6ff });
+});
+
+const portalGroup = new THREE.Group();
+portalGroup.position.set(0, 0, -850);
+const core = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(22, 1),
+  new THREE.MeshStandardMaterial({ color: 0x1a1030, emissive: 0x9d8fff, emissiveIntensity: 2.2, roughness: 0.25 })
+);
+core.position.set(60, 30, -60);
+portalGroup.add(core);
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(34, 40, 64),
+  new THREE.MeshBasicMaterial({ color: 0xeae6ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+);
+portalGroup.add(ring);
+bgScene.add(portalGroup);
+
+const composer = new EffectComposer(webglRenderer);
+composer.addPass(new RenderPass(bgScene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.6, 0.55);
+composer.addPass(bloomPass);
+const vignettePass = new ShaderPass(VignetteShader);
+vignettePass.uniforms.offset.value = 0.15;
+vignettePass.uniforms.darkness.value = 0.9;
+composer.addPass(vignettePass);
+composer.addPass(new OutputPass());
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  webglRenderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+  bloomPass.setSize(window.innerWidth, window.innerHeight);
+});
+
+const clock = new THREE.Clock();
+const introPos = new THREE.Vector3();
+const introTangent = new THREE.Vector3();
+const introLookAhead = new THREE.Vector3();
+const introUp = new THREE.Vector3();
+const introMatrix = new THREE.Matrix4();
+const introQuat = new THREE.Quaternion();
+let lastScrollSmoothed = 0;
+
+function updateIntroCamera(delta) {
+  scrollSmoothed += (scrollRaw - scrollSmoothed) * Math.min(1, delta * 3.2);
+  const speed = Math.abs(scrollSmoothed - lastScrollSmoothed) / Math.max(delta, 1e-4);
+  lastScrollSmoothed = scrollSmoothed;
+
+  const tt = Math.min(scrollSmoothed, 0.999);
+  CAMERA_INTRO_CURVE.getPointAt(tt, introPos);
+  CAMERA_INTRO_CURVE.getTangentAt(tt, introTangent);
+  camera.position.copy(introPos);
+
+  introLookAhead.copy(introPos).addScaledVector(introTangent, 260);
+  const wobble = Math.sin(scrollSmoothed * Math.PI * 5) * 0.18;
+  introUp.set(wobble, 1, 0).normalize();
+  introMatrix.lookAt(camera.position, introLookAhead, introUp);
+  introQuat.setFromRotationMatrix(introMatrix);
+  camera.quaternion.copy(introQuat);
+
+  camera.fov = 55 + Math.min(speed * 6, 18);
+  camera.updateProjectionMatrix();
+
+  document.getElementById('introProgressBar').style.width = `${Math.min(100, scrollSmoothed * 100)}%`;
+  document.getElementById('introHint').style.opacity = Math.max(0, 1 - scrollSmoothed * 8);
+
+  if (scrollSmoothed > 0.985 && !introEntered) {
+    introEntered = true;
+    enterAgent();
+  }
+}
+
+let elapsed = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  elapsed += delta;
+  const t = elapsed;
+
+  if (phase === 'intro') {
+    updateIntroCamera(delta);
+  } else {
+    camera.position.x = Math.sin(t * 0.06) * 70;
+    camera.position.y = Math.cos(t * 0.05) * 36;
+    camera.position.z = 900;
+    camera.lookAt(0, 0, -150);
+    camera.fov += (55 - camera.fov) * 0.05;
+    camera.updateProjectionMatrix();
+  }
+
+  ring.rotation.z += 0.0025;
+  core.rotation.y += 0.003;
+  core.rotation.x += 0.0012;
+
+  for (const b of glassBlocks) {
+    const bob = Math.sin(t * 0.25 + b.phase) * 18;
+    const sway = Math.cos(t * 0.18 + b.phase) * 12;
+    b.mesh.position.set(b.basePos.x + sway, b.basePos.y + bob, b.basePos.z);
+    b.mesh.rotation.y = b.baseRot.y + t * b.spinSpeed;
+    b.mesh.rotation.x = b.baseRot.x + Math.sin(t * 0.15 + b.phase) * 0.08;
+    b.edgeMesh.position.copy(b.mesh.position);
+    b.edgeMesh.rotation.copy(b.mesh.rotation);
+  }
+
+  composer.render();
+}
+animate();
+
+// Populate the intro chips with real numbers via the existing /api/run
+// endpoint (kept for exactly this — a quick on-demand snapshot).
+(async function loadIntroPreview() {
+  try {
+    const res = await fetch('/api/run');
+    const d = await res.json();
+    const score = d.top_risk_score || 0;
+    document.getElementById('introRisk').textContent = `${(score * 100).toFixed(0)}%`;
+    document.getElementById('introGap').textContent = `${Number(d.impact.total_supply_gap_bbl_per_day).toLocaleString()} bbl/day`;
+    document.getElementById('introBrent').textContent = d.live_brent_usd_bbl != null ? `$${d.live_brent_usd_bbl.toFixed(2)}/bbl` : 'unavailable';
+    // top_risk_route's AIS count isn't in this payload directly; reuse the
+    // live tanker count field already threaded through FinalRecommendation.
+    document.getElementById('introTankers').textContent = d.live_tanker_count != null ? `${d.live_tanker_count} live` : 'unavailable';
+  } catch (err) {
+    document.getElementById('introRisk').textContent = 'unavailable';
+  }
+})();
+</script>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const transcript = $('transcript');
+  const input = $('questionInput');
+  const micBtn = $('micBtn');
+  const sendBtn = $('sendBtn');
+  const muteBtn = $('muteBtn');
+  const statusText = $('statusText');
+
+  let muted = false;
+  let asking = false;
+
+  function addMessage(role, html) {
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role}`;
+    wrap.innerHTML = `
+      <div class="avatar">${role === 'user' ? 'You' : 'H'}</div>
+      <div><div class="bubble">${html}</div></div>
+    `;
+    transcript.appendChild(wrap);
+    transcript.scrollTop = transcript.scrollHeight;
+    return wrap;
+  }
+
+  function addThinking() {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg agent thinking';
+    wrap.innerHTML = `<div class="avatar">H</div><div><div class="bubble"><i></i><i></i><i></i></div></div>`;
+    transcript.appendChild(wrap);
+    transcript.scrollTop = transcript.scrollHeight;
+    return wrap;
+  }
+
+  function speak(text) {
+    if (muted || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  }
+
+  async function ask(question) {
+    if (asking || !question.trim()) return;
+    asking = true;
+    sendBtn.disabled = true;
+    addMessage('user', escapeHtml(question));
+    input.value = '';
+    autoGrow();
+    const thinking = addThinking();
+
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+      thinking.remove();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      addMessage('agent', escapeHtml(data.answer).replace(/\n/g, '<br>'));
+      speak(data.answer);
+      statusText.classList.remove('error');
+      statusText.textContent = '';
+    } catch (err) {
+      thinking.remove();
+      addMessage('agent', `<span style="color:var(--critical)">Sorry — ${escapeHtml(err.message)}</span>`);
+    } finally {
+      asking = false;
+      sendBtn.disabled = false;
+    }
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function autoGrow() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(120, input.scrollHeight) + 'px';
+  }
+
+  input.addEventListener('input', autoGrow);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      ask(input.value);
+    }
+  });
+  sendBtn.addEventListener('click', () => ask(input.value));
+
+  document.querySelectorAll('.starter-chip').forEach((btn) => {
+    btn.addEventListener('click', () => ask(btn.textContent));
+  });
+
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('muted', muted);
+    if (muted) window.speechSynthesis.cancel();
+  });
+
+  // --- Voice input (Web Speech API) ---
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognizer = new SpeechRecognition();
+    recognizer.continuous = false;
+    recognizer.interimResults = false;
+    recognizer.lang = 'en-US';
+    let listening = false;
+
+    recognizer.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      input.value = said;
+      autoGrow();
+      ask(said);
+    };
+    recognizer.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
+    recognizer.onend = () => { listening = false; micBtn.classList.remove('listening'); };
+
+    micBtn.addEventListener('click', () => {
+      if (listening) { recognizer.stop(); return; }
+      listening = true;
+      micBtn.classList.add('listening');
+      recognizer.start();
+    });
+  } else {
+    micBtn.disabled = true;
+    micBtn.title = 'Voice input not supported in this browser';
+  }
+
+  // --- Data freshness ---
+  async function pollStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const s = await res.json();
+      const dot = $('freshDot');
+      const text = $('freshText');
+      dot.classList.remove('stale', 'down');
+      if (!s.groq_configured) {
+        dot.classList.add('down');
+        text.textContent = 'Groq API key not configured';
+      } else if (!s.ready) {
+        dot.classList.add('stale');
+        text.textContent = 'Warming up…';
+      } else {
+        const ageSec = Math.max(0, Math.round(Date.now() / 1000 - s.data_as_of_unix));
+        if (ageSec > 180) dot.classList.add('stale');
+        text.textContent = ageSec < 5 ? 'Live' : `Data as of ${ageSec}s ago`;
+      }
+    } catch (err) {
+      $('freshDot').classList.add('down');
+      $('freshText').textContent = 'Server unreachable';
+    }
+  }
+  pollStatus();
+  setInterval(pollStatus, 15000);
+})();
+</script>
+</body>
+</html>
