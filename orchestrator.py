@@ -19,7 +19,8 @@ def run_pipeline(scenario_name: str = "Hormuz disruption scenario",
                   region_of_concern: str = "Hormuz",
                   seed: int = 42) -> FinalRecommendation:
 
-    # Stage 0: pull (synthetic) live signals
+    # Stage 0: pull live signals (news + market are real; AIS is real for
+    # Hormuz-* routes; see data_sources.py's module docstring for provenance)
     news = generate_news_signals(seed=seed)
     ais = generate_ais_signals(seed=seed)
     market = generate_market_signals(seed=seed)
@@ -53,6 +54,12 @@ def run_pipeline(scenario_name: str = "Hormuz disruption scenario",
         f"Factors: {', '.join(top.contributing_factors)}."
     )
 
+    # Surface a couple of the real Stage-0 numbers directly (not just as
+    # inputs baked into the risk score) so callers like the dashboard can
+    # show live figures without re-fetching them separately.
+    live_ais = next((a for a in ais if region_of_concern.lower() in a.route.lower()), None)
+    live_brent = next((m for m in market if m.benchmark == "Brent"), None)
+
     return FinalRecommendation(
         scenario=scenario_name,
         risk_summary=risk_summary,
@@ -63,6 +70,8 @@ def run_pipeline(scenario_name: str = "Hormuz disruption scenario",
         action_items=action_items,
         top_risk_route=top.route,
         top_risk_score=top.risk_score,
+        live_tanker_count=live_ais.tanker_count_current if live_ais else None,
+        live_brent_usd_bbl=live_brent.price_usd_bbl if live_brent else None,
     )
 
 

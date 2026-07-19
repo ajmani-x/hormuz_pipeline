@@ -197,3 +197,5 @@ class FinalRecommendation:
     action_items: list = field(default_factory=list)
     top_risk_route: str = ""
     top_risk_score: float = 0.0
+    live_tanker_count: Optional[int] = None
+    live_brent_usd_bbl: Optional[float] = None
