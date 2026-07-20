@@ -63,9 +63,11 @@ def render_report(rec) -> str:
         lines.append(f"  {i}. {item}")
     lines.append("")
     lines.append("=" * 78)
-    lines.append("NOTE: news (GDELT) and market prices (Yahoo Finance) are real; the")
-    lines.append("reference network (refineries/suppliers/SPR/AIS) is synthetic/illustrative.")
-    lines.append("This is a mechanics demo, not a live risk assessment.")
+    lines.append("DATA: news (GDELT), Brent/WTI (Yahoo/EIA), Hormuz AIS (straits.live) and the")
+    lines.append("freight proxy are live; on fetch failure the last-known-good cache is used,")
+    lines.append("then cited published baselines. Reference figures (refineries/suppliers/SPR)")
+    lines.append("are real published data, refreshed by hand. Nothing is random. Each signal")
+    lines.append("carries a data_quality flag: live | cached | baseline.")
     lines.append("=" * 78)
     return "\n".join(lines)
 
@@ -75,7 +77,8 @@ def main():
     parser.add_argument("--scenario", default="Strait of Hormuz flow disruption")
     parser.add_argument("--disruption", type=float, default=0.5, help="Fraction of route flow lost, e.g. 0.5")
     parser.add_argument("--region", default="Hormuz")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed for synthetic signal generation")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Deprecated — no effect (all data paths are real/deterministic)")
     parser.add_argument("--json", metavar="PATH", help="Also write full structured output to this JSON path")
     args = parser.parse_args()
 

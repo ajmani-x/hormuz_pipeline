@@ -39,7 +39,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from data_sources import generate_news_signals
+from data_sources import generate_news_signals, load_env_file, EIA_API_KEY
 from models import to_dict
 from orchestrator import run_pipeline
 
@@ -52,19 +52,7 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 REFRESH_INTERVAL_SECONDS = 90
 CHAT_HISTORY_TURNS = 10  # how many past exchanges to feed back to the model as context
 
-
-def _load_env_file(path: Path) -> dict:
-    env = {}
-    if path.exists():
-        for line in path.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                env[key.strip()] = value.strip()
-    return env
-
-
-_dotenv = _load_env_file(ENV_PATH)
+_dotenv = load_env_file(ENV_PATH)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") or _dotenv.get("GROQ_API_KEY")
 
 
@@ -108,7 +96,8 @@ def _build_context() -> dict | None:
     return {
         "pipeline_result": to_dict(rec),
         "recent_news": [
-            {"headline": n.headline, "source": n.source, "sentiment": n.sentiment}
+            {"headline": n.headline, "source": n.source, "sentiment": n.sentiment,
+             "data_quality": n.data_quality}
             for n in news[:8]
         ],
         "data_as_of_unix": updated_at,
@@ -150,10 +139,15 @@ SYSTEM_PROMPT = """You are a supply-chain risk analyst assistant for a live pipe
 Strait of Hormuz disruption risk to India's oil imports. Answer the user's question using ONLY \
 the JSON data provided below, from the most recent pipeline run.
 
-Data provenance, be honest about this if asked: news headlines, market prices (Brent/WTI), and \
-tanker/AIS counts for Hormuz routes are REAL live data. Refinery and SPR reserve capacities are \
-real published figures but static (not live). SPR current fill levels, non-Hormuz route AIS data, \
-and exact supplier contract terms are illustrative placeholders, not real figures.
+Data provenance, be honest about this if asked: nothing in this pipeline is random. News \
+headlines (GDELT), Brent/WTI prices (Yahoo/EIA), Hormuz tanker/AIS counts (straits.live) and \
+the freight-rate proxy are live feeds; when a live fetch fails, the last successful fetch is \
+replayed from cache, and failing that, cited published baseline figures are used. Every signal \
+carries a data_quality field: "live" (fetched this run), "cached" (last known good), or \
+"baseline" (published reference figure — e.g. non-Hormuz route traffic, which has no free live \
+source). Refinery and SPR capacities are real published figures (static); SPR fill levels are \
+the last publicly reported figures; supplier volumes are grounded in India's published FY2024-25 \
+import mix, with headroom derived from reported spare capacity (not contract terms).
 
 Be concise, conversational (this answer will be read aloud via text-to-speech), and cite specific \
 numbers from the data. If the question isn't covered by the data, say so rather than inventing an \
@@ -278,6 +272,7 @@ class AgentHandler(BaseHTTPRequestHandler):
             "data_as_of_unix": updated_at,
             "last_error": error,
             "groq_configured": bool(GROQ_API_KEY),
+            "eia_configured": bool(EIA_API_KEY),
         })
 
     # --- POST ---

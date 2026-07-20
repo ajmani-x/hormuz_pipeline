@@ -12,10 +12,12 @@ live signals (news / AIS / market)
         -> Recommendation Engine
 ```
 
-This is a **mechanics demo**. It runs end-to-end and produces a structured,
-internally-consistent recommendation, but every input is synthetic. It is
-meant to prove out the pipeline design and give you something to build
-against, not to make a real call about the Strait of Hormuz.
+This is a **prototype**. It runs end-to-end on real data — live news, AIS
+and market feeds with cached and published-baseline fallbacks — and produces
+a structured, internally-consistent recommendation. The agent *heuristics*
+are still simple weighted functions (see below), so treat the output as a
+pipeline-design demo grounded in real inputs, not an authoritative call
+about the Strait of Hormuz.
 
 ## Run it
 
@@ -26,15 +28,15 @@ python main.py --disruption 1.0 --json full_output.json
 ```
 
 `--disruption` is the fraction of Hormuz-route flow assumed lost (0.5 =
-"Hormuz -50%"). `--seed` controls the synthetic signal generator so you can
-get reproducible or varied scenarios. `--json` also dumps the full structured
-`FinalRecommendation` object for programmatic use.
+"Hormuz -50%"). `--seed` is deprecated and has no effect (all data paths are
+real/deterministic — nothing is randomly generated). `--json` also dumps the
+full structured `FinalRecommendation` object for programmatic use.
 
 ## How the stages map to files
 
 | Stage | File | What it does |
 |---|---|---|
-| Live signals | `data_sources.py` | Synthetic news/AIS/market generators + static reference network (refineries, suppliers, SPR sites) |
+| Live signals | `data_sources.py` | Live news/AIS/market feeds (with cached + baseline fallbacks) + real reference network (refineries, suppliers, SPR sites) |
 | Geopolitical Risk Agent | `agents/geo_risk_agent.py` | Weighted-heuristic risk score per shipping route |
 | Digital Twin | `agents/digital_twin.py` | Looks up which refineries/routes are exposed given the flagged region |
 | Disruption Simulator | `agents/disruption_simulator.py` | Applies the disruption %, computes supply gap and rough price impact |
@@ -57,23 +59,39 @@ and let other Hormuz-transiting suppliers pose as "safe" alternatives — that
 was a real bug, not a stylistic choice, and it's worth remembering if you
 extend the region-matching logic.
 
-## What's fake here, and what to plug in for a real system
+## Data provenance & degradation
 
-Everything in `data_sources.py` is illustrative — refinery capacities,
-supplier lead times, SPR fill levels, and the signal generators are all
-synthetic. To make this real:
+Nothing in the data layer is random. Every feed follows a three-tier
+fallback, and each signal carries a `data_quality` flag telling you which
+tier produced it:
 
-- `generate_news_signals()` → a news/geopolitical risk API + sentiment model
-- `generate_ais_signals()` → a tanker-tracking provider (e.g. Kpler, MarineTraffic, Windward)
-- `generate_market_signals()` → a market data provider (e.g. Platts, Refinitiv)
-- `REFINERIES` / `SUPPLIERS` / `SPR_SITES` → internal ERP data, contract terms, and actual national reserve figures
+| Feed | Live source | Cache file | Baseline (no cache) |
+|---|---|---|---|
+| News | GDELT DOC 2.0 API (keyless) | `.cache/gdelt_news.json` | Real dated historical Hormuz/Red Sea events |
+| Hormuz AIS | straits.live free API (keyless) — real tanker counts + Bandar Abbas congestion | `.cache/straits_live.json` | Actual observed values (cited, dated) |
+| Hormuz "normal" tanker baseline | Self-calibrating median of observed history (`.cache/ais_history.json`, 30-day window) | — | Cited constant (130) until enough history accumulates |
+| Non-Hormuz routes (Cape / Red Sea) | *(no free per-vessel source exists)* | — | Static figures derived from published route volumes — always `baseline` |
+| Brent/WTI | Yahoo Finance chart API (keyless), then EIA API v2 (optional free `EIA_API_KEY`) | `.cache/market.json` | Cited recent price levels |
+| Freight rate index | Live proxy: 7-day move of listed crude-tanker owners (FRO/STNG/TNK via Yahoo) | `.cache/market.json` | 1.0 (= freight normal; BDTI paid-only) |
 
-None of the agent logic (`agents/*.py`, `orchestrator.py`) needs to change to
-swap in real data — it only depends on the dataclass shapes in `models.py`.
-The scoring heuristics in `geo_risk_agent.py` and the price-impact formula in
-`disruption_simulator.py` are simple weighted functions meant to be replaced
-with real models (e.g. a trained classifier, or an LLM reasoning step over
-the same features) once you have real signal quality to justify it.
+`data_quality` values: `live` (fetched this run) → `cached` (last known good,
+replayed on fetch failure) → `baseline` (published/cited reference figure).
+
+Reference data (`REFINERIES`, `SUPPLIERS`, `SPR_SITES`) is real published
+data refreshed by hand: refinery/SPR capacities are official figures;
+supplier volumes are grounded in India's published FY2024-25 import mix with
+headroom derived from reported spare capacity; SPR fill levels are the last
+publicly reported state (India doesn't publish live reserve levels). Each
+constant carries its source in an inline comment in `data_sources.py`.
+
+To upgrade any tier (e.g. paid AIS for the Cape route, Platts freight data,
+internal ERP contract terms), only `data_sources.py` changes — the agent
+logic (agent `*.py` files, `orchestrator.py`) depends only on the dataclass
+shapes in `models.py`. The scoring heuristics in `geo_risk_agent.py` and the
+price-impact formula in `disruption_simulator.py` are simple weighted
+functions meant to be replaced with real models (e.g. a trained classifier,
+or an LLM reasoning step over the same features) once you have real signal
+quality to justify it.
 
 ## What this deliberately does NOT do
 

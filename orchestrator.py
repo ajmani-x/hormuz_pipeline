@@ -19,8 +19,9 @@ def run_pipeline(scenario_name: str = "Hormuz disruption scenario",
                   region_of_concern: str = "Hormuz",
                   seed: int = 42) -> FinalRecommendation:
 
-    # Stage 0: pull live signals (news + market are real; AIS is real for
-    # Hormuz-* routes; see data_sources.py's module docstring for provenance)
+    # Stage 0: pull live signals (news/market/Hormuz-AIS are real live feeds
+    # with cached/baseline fallbacks — see data_sources.py's module docstring;
+    # `seed` is passed through for backward compatibility but has no effect)
     news = generate_news_signals(seed=seed)
     ais = generate_ais_signals(seed=seed)
     market = generate_market_signals(seed=seed)

@@ -136,7 +136,7 @@
   <header>
     <div>
       <h1>Strait of Hormuz — Supply Chain Disruption</h1>
-      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News signals are real (GDELT); reference network and market data are synthetic/illustrative — mechanics demo, not a live risk assessment.</div>
+      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News (GDELT), Brent/WTI (Yahoo/EIA) and Hormuz AIS (straits.live) are live; fallbacks use last-known-good cache, then published baselines — nothing is random.</div>
       <span class="badge-demo">DEMO DATA</span>
     </div>
     <button class="theme-toggle" id="themeToggle" type="button">🌓 Theme</button>
@@ -154,8 +154,8 @@
         <input id="disruption" type="number" min="0" max="1" step="0.05" value="0.5">
       </div>
       <div class="field">
-        <label for="seed">Seed (blank = live/random)</label>
-        <input id="seed" type="number" placeholder="random">
+        <label for="seed">Seed (deprecated — no effect)</label>
+        <input id="seed" type="number" placeholder="unused">
       </div>
       <div class="field">
         <label for="interval">Auto-refresh</label>
@@ -207,7 +207,7 @@
     <div id="actionsBody"><span class="empty-note">—</span></div>
   </section>
 
-  <footer>hormuz_pipeline — local prototype dashboard. All inputs illustrative except news signals.</footer>
+  <footer>hormuz_pipeline — local prototype dashboard. Live feeds (GDELT / Yahoo / straits.live) with cached + published-baseline fallbacks; nothing is random.</footer>
 </div>
 
 <script>
