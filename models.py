@@ -22,7 +22,9 @@ def to_json(obj) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Stage 0: raw signals (synthetic stand-ins for News/AIS/Market feeds)
+# Stage 0: raw signals (real News/AIS/Market feeds; each carries a
+# data_quality flag: "live" = fetched this run, "cached" = last known good
+# from a previous successful fetch, "baseline" = published reference figure)
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -32,6 +34,7 @@ class NewsSignal:
     sentiment: float          # -1 (very negative/escalatory) .. +1 (de-escalatory)
     relevance: float          # 0..1, how relevant to the route/region
     region: str
+    data_quality: str = "live"   # "live" | "cached" | "baseline"
 
 
 @dataclass
@@ -41,6 +44,7 @@ class AISSignal:
     tanker_count_current: int
     avg_transit_delay_hours: float
     port_congestion_index: float   # 0..1
+    data_quality: str = "live"     # "live" | "cached" | "baseline"
 
 
 @dataclass
@@ -48,7 +52,8 @@ class MarketSignal:
     benchmark: str            # e.g. "Brent", "Dubai"
     price_usd_bbl: float
     price_change_pct_7d: float
-    freight_rate_index: float # 0..1 (relative to baseline)
+    freight_rate_index: float # ~1.0 = baseline-normal freight; >1 = elevated
+    data_quality: str = "live"   # "live" | "cached" | "baseline"
 
 
 # ---------------------------------------------------------------------------

@@ -250,7 +250,7 @@
     <div>
       <span class="eyebrow">Supply Chain Intelligence</span>
       <h1>Strait of Hormuz — Disruption Dashboard</h1>
-      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News (GDELT) and market prices (Yahoo Finance) are real; the reference network and AIS data are synthetic/illustrative.</div>
+      <div class="subtitle">Live view of the 6-stage risk → exposure → impact → procurement → SPR pipeline. News (GDELT), Brent/WTI (Yahoo/EIA) and Hormuz AIS (straits.live) are live; fallbacks use last-known-good cache, then published baselines — nothing is random.</div>
       <span class="badge-demo">DEMO DATA</span>
     </div>
   </header>
@@ -279,7 +279,7 @@
     <div class="controls">
       <div class="field"><label for="region">Region</label><input id="region" type="text" value="Hormuz"></div>
       <div class="field"><label for="disruption">Disruption (0–1)</label><input id="disruption" type="number" min="0" max="1" step="0.05" value="0.5"></div>
-      <div class="field"><label for="seed">Seed (blank = live)</label><input id="seed" type="number" placeholder="random"></div>
+      <div class="field"><label for="seed">Seed (deprecated — no effect)</label><input id="seed" type="number" placeholder="unused"></div>
       <div class="field">
         <label for="interval">Auto-refresh</label>
         <select id="interval">
@@ -309,7 +309,7 @@
     <section class="panel rise-target" style="animation-delay:0.33s"><h2>Recommended Actions</h2><div id="actionsBody"><span class="empty-note">—</span></div></section>
   </div>
 
-  <footer class="page-footer">hormuz_pipeline — local prototype dashboard. News (GDELT) and market prices (Yahoo Finance) are real; the rest is illustrative.</footer>
+  <footer class="page-footer">hormuz_pipeline — local prototype dashboard. Live feeds (GDELT / Yahoo / straits.live) with cached + published-baseline fallbacks; reference figures are real published data.</footer>
 </div>
 </div>
 
