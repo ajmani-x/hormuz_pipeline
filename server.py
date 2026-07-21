@@ -197,6 +197,43 @@ def _ask_groq(question: str, context: dict, history: list) -> str:
     return result["choices"][0]["message"]["content"]
 
 
+# ---------------------------------------------------------------------------
+# Which Indian state a question/answer is "about", for the UI's map pin.
+# Driven by the server (which already has the structured route/refinery
+# data) rather than the client trying to regex the model's freeform prose —
+# more reliable, and the state names match real geography, not guesses.
+# ---------------------------------------------------------------------------
+STATE_BY_ROUTE = {
+    "Hormuz-Gujarat": "Gujarat",
+    "Hormuz-Kochi": "Kerala",
+    "Hormuz-Mumbai": "Maharashtra",
+    "CapeRoute-EastCoast": "Odisha",
+    "RedSea-WestCoast": "Gujarat",
+}
+STATE_KEYWORDS = {
+    "Gujarat": ["gujarat", "jamnagar", "vadinar", "reliance", "nayara"],
+    "Kerala": ["kerala", "kochi", "cochin", "bpcl"],
+    "Maharashtra": ["maharashtra", "mumbai", "hpcl"],
+    "Odisha": ["odisha", "orissa", "paradip"],
+}
+
+
+def _detect_highlight_states(question: str, answer: str, top_risk_route: str | None) -> list:
+    """Every state actually discussed, so a question like "which refineries
+    are exposed" (whose answer spans several states) highlights all of them
+    instead of silently collapsing to a single fallback. Scans the answer
+    first — that's what's actually being talked about — then the question,
+    and only falls back to the current top-risk route if neither mentions
+    a state by name at all.
+    """
+    combined = f"{answer}\n{question}".lower()
+    matched = [state for state, keywords in STATE_KEYWORDS.items() if any(kw in combined for kw in keywords)]
+    if matched:
+        return matched
+    fallback = STATE_BY_ROUTE.get(top_risk_route)
+    return [fallback] if fallback else []
+
+
 class AgentHandler(BaseHTTPRequestHandler):
     server_version = "HormuzAgent/1.0"
 
@@ -264,7 +301,8 @@ class AgentHandler(BaseHTTPRequestHandler):
 
     def _send_status(self):
         with _cache_lock:
-            ready = _cache["result"] is not None
+            rec = _cache["result"]
+            ready = rec is not None
             updated_at = _cache["updated_at"]
             error = _cache["error"]
         self._send_json(200, {
@@ -273,6 +311,20 @@ class AgentHandler(BaseHTTPRequestHandler):
             "last_error": error,
             "groq_configured": bool(GROQ_API_KEY),
             "eia_configured": bool(EIA_API_KEY),
+            # So the UI can show a persistent, always-current risk badge that
+            # updates on its own poll cycle, without needing to ask a
+            # question first just to see the current number.
+            "top_risk_route": rec.top_risk_route if rec else None,
+            "top_risk_score": rec.top_risk_score if rec else None,
+            # Feeds the side panels' "Live Signals" widget — same numbers
+            # already computed for the intro splash chips, just exposed on
+            # the polled status endpoint too so the chat view can show them
+            # without a separate /api/run call.
+            "live_brent_usd_bbl": rec.live_brent_usd_bbl if rec else None,
+            "live_tanker_count": rec.live_tanker_count if rec else None,
+            "supply_gap_bbl_per_day": rec.impact.total_supply_gap_bbl_per_day if rec else None,
+            "supply_gap_pct_of_demand": rec.impact.supply_gap_pct_of_demand if rec else None,
+            "exposed_refinery_count": len(rec.exposure.exposed_refineries) if rec else None,
         })
 
     # --- POST ---
@@ -313,7 +365,12 @@ class AgentHandler(BaseHTTPRequestHandler):
             return
 
         _append_chat_log(question, answer)
-        self._send_json(200, {"answer": answer, "data_as_of_unix": context["data_as_of_unix"]})
+        top_risk_route = context["pipeline_result"].get("top_risk_route")
+        self._send_json(200, {
+            "answer": answer,
+            "data_as_of_unix": context["data_as_of_unix"],
+            "highlight_states": _detect_highlight_states(question, answer, top_risk_route),
+        })
 
 
 def main():
