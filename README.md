@@ -2,7 +2,7 @@
 
 > AI-driven energy supply-chain resilience for import-dependent economies.
 
-HormuzShield AI is a working prototype submitted for **Problem Statement 2** of the **ET AI Hackathon 2.0**. It helps Indian energy planners understand how a disruption at the Strait of Hormuz could affect crude-oil supply, refinery operations, procurement, and strategic petroleum reserves (SPR)—then turns that analysis into an explainable response plan.
+HormuzShield AI is a working prototype built for **Problem Statement 2: AI-driven energy supply-chain resilience for import-dependent economies** at the **ET AI Hackathon 2.0**. It helps Indian energy planners understand how a disruption at the Strait of Hormuz could affect crude-oil supply, refinery operations, procurement, and strategic petroleum reserves (SPR)—then turns that analysis into an explainable response plan.
 
 The prototype combines live external signals, a supply-chain digital twin, deterministic scenario simulation, constrained procurement planning, SPR optimization, and a grounded GenAI assistant in one decision-support workflow.
 
@@ -75,7 +75,7 @@ The analytical pipeline uses only the Python standard library. No package instal
 ### Setup
 
 ```bash
-git clone <PUBLIC_REPOSITORY_URL>
+git clone https://github.com/ajmani-x/hormuz_pipeline.git
 cd hormuz_pipeline
 cp .env.example .env
 ```
@@ -215,27 +215,6 @@ hormuz_pipeline/
 ├── sample_run.json            # Example structured result
 └── .env.example               # Environment-variable template
 ```
-
-## Submission links
-
-Replace these placeholders before submitting through Unstop:
-
-- **Public GitHub repository:** `<PUBLIC_REPOSITORY_URL>`
-- **Live prototype:** `<DEPLOYED_DEMO_URL>`
-- **Demo video:** `<DEMO_VIDEO_URL>`
-- **Pitch deck:** `<PITCH_DECK_URL>`
-- **Team:** `<TEAM_NAME_AND_MEMBERS>`
-
-## Hackathon alignment
-
-This repository is organized around the official ET AI Hackathon evaluation dimensions:
-
-- **Relevance:** directly addresses energy supply-chain resilience for an import-dependent economy.
-- **Innovation:** connects geopolitical intelligence, a supply graph, constrained response planning, and grounded GenAI.
-- **Technical implementation:** supplies a functioning end-to-end prototype, explicit data contracts, live integrations, APIs, and graceful fallbacks.
-- **Impact and scalability:** generalizes across geographies, commodities, chokepoints, and enterprise data sources.
-- **Presentation and clarity:** includes an interactive visual experience, voice interaction, reproducible setup, architecture, and a guided demo path.
-- **Business viability:** targets concrete planning workflows while retaining human authority for consequential decisions.
 
 ## Acknowledgements
 
