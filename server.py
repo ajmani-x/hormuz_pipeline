@@ -44,6 +44,7 @@ from models import to_dict
 from orchestrator import run_pipeline
 
 AGENT_HTML_PATH = Path(__file__).with_name("agent.html")
+INDIA_TOPOJSON_PATH = Path(__file__).with_name("india-states.topojson")
 ENV_PATH = Path(__file__).with_name(".env")
 CHAT_LOG_PATH = Path(__file__).with_name("chat_history.jsonl")
 
@@ -254,6 +255,8 @@ class AgentHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/":
             self._send_agent_page()
+        elif parsed.path == "/india-states.topojson":
+            self._send_india_topology()
         elif parsed.path == "/api/run":
             self._send_run(urllib.parse.parse_qs(parsed.query))
         elif parsed.path == "/api/status":
@@ -269,6 +272,19 @@ class AgentHandler(BaseHTTPRequestHandler):
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_india_topology(self):
+        try:
+            body = INDIA_TOPOJSON_PATH.read_bytes()
+        except FileNotFoundError:
+            self._send_json(500, {"error": "india-states.topojson missing"})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/topo+json")
+        self.send_header("Cache-Control", "public, max-age=86400")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

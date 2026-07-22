@@ -218,7 +218,7 @@ hormuz_pipeline/
 
 ## Acknowledgements
 
-This prototype uses public data from GDELT, straits.live, Yahoo Finance, and optionally the U.S. Energy Information Administration. The conversational layer calls the Groq API using an open model. Detailed source notes and derivations are included alongside the relevant constants in `data_sources.py`.
+This prototype uses public data from GDELT, straits.live, Yahoo Finance, and optionally the U.S. Energy Information Administration. The conversational layer calls the Groq API using an open model. The web map uses the MIT-licensed, web-optimized boundary data from [india-official-geojson](https://github.com/AbhinavSwami28/india-official-geojson), which includes the complete Jammu & Kashmir, Ladakh/Aksai Chin, and Arunachal Pradesh extents. Detailed source notes and derivations are included alongside the relevant constants in `data_sources.py`.
 
 ## License
 

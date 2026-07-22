@@ -656,10 +656,10 @@ animate();
   }
 })();
 
-/* ---------------- India map: real state boundaries + zoom-to-route pin ----------------
-   Topology is a well-known small (~145KB) TopoJSON of India's states/UTs
-   (markmarkoh/datamaps), served via jsdelivr's GitHub-raw mirror — same CDN
-   pattern already used for Three.js. Parsed client-side with topojson-client
+/* ---------------- India map: complete state boundaries + zoom-to-route pin ----------------
+   Topology is a locally served, web-optimized India TopoJSON that includes
+   the complete Jammu & Kashmir, Ladakh/Aksai Chin, and Arunachal Pradesh
+   extents. It is parsed client-side with topojson-client
    into GeoJSON, then hand-projected (simple equirectangular — accurate
    enough at India's scale) into SVG paths. No mapping library needed beyond
    the topology parser. window.HormuzMap.highlightStates() is called by the
@@ -678,7 +678,7 @@ animate();
   let topojsonClient, topology;
   try {
     topojsonClient = await import('topojson-client');
-    const res = await fetch('https://cdn.jsdelivr.net/gh/markmarkoh/datamaps@master/src/js/data/ind.topo.json');
+    const res = await fetch('/india-states.topojson');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     topology = await res.json();
   } catch (err) {
@@ -687,8 +687,10 @@ animate();
     return;
   }
 
-  const geo = topojsonClient.feature(topology, topology.objects.ind);
-  const features = geo.features.filter((f) => f.properties && f.properties.name);
+  const topologyObject = topology.objects.data || topology.objects.ind || Object.values(topology.objects)[0];
+  const geo = topojsonClient.feature(topology, topologyObject);
+  const featureName = (f) => f.properties?.name || f.properties?.NAME_1;
+  const features = geo.features.filter((f) => featureName(f));
 
   let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
   function visitCoords(coords, depth) {
@@ -737,9 +739,11 @@ animate();
   const statePaths = {};
   const centroids = {};
   features.forEach((f) => {
-    const name = f.properties.name;
+    const name = featureName(f);
     const path = document.createElementNS(svgNS, 'path');
     path.setAttribute('d', geomPath(f.geometry));
+    path.setAttribute('data-state', name);
+    path.setAttribute('aria-label', name);
     path.setAttribute('class', 'india-state' + (RELEVANT_TOPO.includes(name) ? ' relevant' : ''));
     viewport.appendChild(path);
     statePaths[name] = path;
